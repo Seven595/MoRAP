@@ -10,6 +10,10 @@ hyperparameters were not changed. STAG is the exception: its benchmark adapter
 is self-contained and the directory only documents the external encoder
 checkpoint.
 
+The HESpotEx reproduction wrappers import the current `morap` package, and
+the STAG resource note uses the MoRAP project name. Their manifest hashes
+track these repository integration changes.
+
 Each snapshot remains subject to its upstream license; no additional rights
 are granted for files whose upstream source has no license. The manifest hashes
 the portable files distributed here. Verify them from the repository root with:

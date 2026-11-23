@@ -32,18 +32,18 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 import torchvision
 
-from lin_mnp.paths import ARCHIVE_ROOT, CACHE_ROOT, REPOSITORY_ROOT
+from morap.paths import environment_value, ARCHIVE_ROOT, CACHE_ROOT, REPOSITORY_ROOT
 
 PROJECT = REPOSITORY_ROOT
 ARCHIVE = ARCHIVE_ROOT
 if str(PROJECT) not in sys.path:
     sys.path.insert(0, str(PROJECT))
-from lin_mnp.benchmark.benchmark_external import (  # noqa: E402
+from morap.benchmark.benchmark_external import (  # noqa: E402
     PATCH_ROOT, apply_target_transform, fit_target_transform, load_folds, load_slides,
 )
 
-UNI_ROOT = Path(os.environ.get(
-    "LIN_MNP_UNI_ROOT", str(CACHE_ROOT / "shared/uni_v1"),
+UNI_ROOT = Path(environment_value(
+    "MORAP_UNI_ROOT", str(CACHE_ROOT / "shared/uni_v1"),
 ))
 STAG_WEIGHT = PROJECT / "comparators/methods/STAG/2D/weights/tenpercent_resnet18.ckpt"
 METHODS = ("holotea", "spahgc", "stag")

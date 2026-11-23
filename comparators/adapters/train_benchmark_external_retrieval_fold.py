@@ -35,7 +35,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from lin_mnp.benchmark.benchmark_external import (  # noqa: E402
+from morap.benchmark.benchmark_external import (  # noqa: E402
     DERIVED_ROOT,
     PATCH_ROOT,
     apply_target_transform,
@@ -43,19 +43,19 @@ from lin_mnp.benchmark.benchmark_external import (  # noqa: E402
     load_folds,
     load_slides,
 )
-from lin_mnp.paths import RESULTS_ROOT
+from morap.paths import environment_value, RESULTS_ROOT
 
 
 DEFAULT_OUTPUT = RESULTS_ROOT / "comparator_reruns"
 FEATURE_ROOT = Path(
-    os.environ.get(
-        "LIN_MNP_EGN_EMBEDDING_ROOT",
+    environment_value(
+        "MORAP_EGN_EMBEDDING_ROOT",
         str(DERIVED_ROOT / "egn_exemplar_embeddings_v1"),
     )
 ).resolve()
 NUCLEI_ROOT = Path(
-    os.environ.get(
-        "LIN_MNP_CELLPOSE_NUCLEI_ROOT",
+    environment_value(
+        "MORAP_CELLPOSE_NUCLEI_ROOT",
         str(DERIVED_ROOT / "shared_image_descriptors/cellpose_nuclei_px192_d14_v1/slides"),
     )
 ).resolve()
@@ -415,7 +415,7 @@ def train_retrieval(
     seed: int,
 ) -> tuple[dict[str, torch.Tensor], list[dict[str, object]], float, int]:
     fixed_final_epoch = (
-        os.environ.get("LIN_MNP_CHECKPOINT_MODE") == "fixed_final_epoch"
+        environment_value("MORAP_CHECKPOINT_MODE") == "fixed_final_epoch"
     )
     dataset = TensorDataset(
         torch.from_numpy(np.asarray(train_feature)),
@@ -487,7 +487,7 @@ def train_igidl(
     seed: int,
 ) -> tuple[dict[str, torch.Tensor], list[dict[str, object]], float, int]:
     fixed_final_epoch = (
-        os.environ.get("LIN_MNP_CHECKPOINT_MODE") == "fixed_final_epoch"
+        environment_value("MORAP_CHECKPOINT_MODE") == "fixed_final_epoch"
     )
     dataset = TensorDataset(
         torch.from_numpy(np.asarray(train_feature)),
@@ -569,7 +569,7 @@ def train_fold(args: argparse.Namespace) -> Path:
     folds = load_folds()
     fold = folds[args.fold]
     fixed_final_epoch = (
-        os.environ.get("LIN_MNP_CHECKPOINT_MODE") == "fixed_final_epoch"
+        environment_value("MORAP_CHECKPOINT_MODE") == "fixed_final_epoch"
     )
     slides, genes = load_slides()
     parameters = fit_target_transform(slides, fold.train_ids, specification["target_transform"])
@@ -739,13 +739,13 @@ def train_fold(args: argparse.Namespace) -> Path:
         "seed": seed,
         "best_epoch_selected_by_validation_only": (
             best_epoch
-            if os.environ.get("LIN_MNP_CHECKPOINT_SELECTION_SCOPE")
+            if environment_value("MORAP_CHECKPOINT_SELECTION_SCOPE")
             == "inner_validation"
             else None
         ),
         "best_epoch_selected_by_outer_test": (
             best_epoch
-            if os.environ.get("LIN_MNP_CHECKPOINT_SELECTION_SCOPE")
+            if environment_value("MORAP_CHECKPOINT_SELECTION_SCOPE")
             == "outer_test"
             else None
         ),
@@ -753,11 +753,11 @@ def train_fold(args: argparse.Namespace) -> Path:
         "selection_policy": (
             "fixed epoch selected by inner validation, followed by all-outer-train refit"
             if fixed_final_epoch
-            else os.environ.get(
-                "LIN_MNP_CHECKPOINT_SELECTION_SCOPE",
+            else environment_value(
+                "MORAP_CHECKPOINT_SELECTION_SCOPE",
                 (
                     "outer-test PCC under HESPotEx-aligned section-LOSO"
-                    if os.environ.get("LIN_MNP_EXTERNAL_CONTRACT")
+                    if environment_value("MORAP_EXTERNAL_CONTRACT")
                     else "validation-only PCC under Benchmark patient outer-CV"
                 ),
             )

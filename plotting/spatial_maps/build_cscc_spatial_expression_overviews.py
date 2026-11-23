@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Rebuild the established spatial-expression overview with Lin-MNP.
+"""Rebuild the established spatial-expression overview with MoRAP.
 
 The visual design, comparison-method roster, gene-selection categories, tissue
 geometry and per-panel scaling are imported from the audited v4 overview code.
-Only the Lin-MNP prediction source and the derived selection evidence are
+Only the MoRAP prediction source and the derived selection evidence are
 replaced.  This keeps the new figures visually identical to the established
 panels while preventing the promoted model from inheriting an older gene list.
 """
@@ -23,20 +23,22 @@ from typing import Any, Sequence
 import numpy as np
 import pandas as pd
 
-from lin_mnp.paths import ARCHIVE_ROOT, RESULTS_ROOT
+from morap.compat import artifact_value
+from morap.compat import artifact_path
+from morap.paths import ARCHIVE_ROOT, RESULTS_ROOT
 
 OUTPUT_ROOT = RESULTS_ROOT / "figures/spatial_maps"
 LEGACY_ROOT = (
     ARCHIVE_ROOT / "spatial_maps/legacy"
 )
 LEGACY_CODE = LEGACY_ROOT / "code"
-LIN_MNP_BENCHMARK_ROOT = RESULTS_ROOT / "cscc/folds"
-LIN_MNP_HESPOTEX_ROOT = ARCHIVE_ROOT / "hespotex/lin_mnp"
-LIN_MNP_BENCHMARK_METRICS = (
-    ARCHIVE_ROOT / "benchmark/lin_mnp/per_section_gene_metrics.csv.gz"
+MORAP_BENCHMARK_ROOT = RESULTS_ROOT / "cscc/folds"
+MORAP_HESPOTEX_ROOT = artifact_path(ARCHIVE_ROOT / "hespotex/morap")
+MORAP_BENCHMARK_METRICS = (
+    artifact_path(ARCHIVE_ROOT / "benchmark/morap/per_section_gene_metrics.csv.gz")
 )
-LIN_MNP_HESPOTEX_METRICS = (
-    ARCHIVE_ROOT / "hespotex/lin_mnp/per_section_gene_metrics.csv.gz"
+MORAP_HESPOTEX_METRICS = (
+    artifact_path(ARCHIVE_ROOT / "hespotex/morap/per_section_gene_metrics.csv.gz")
 )
 LEGACY_HESPOTEX_INDEX = (
     ARCHIVE_ROOT / "hespotex/prediction_artifact_index.csv"
@@ -59,8 +61,10 @@ RECONSTRUCTED_HER2_METHODS = (
     "BLEEP",
     "IGI-DL",
 )
+# The companion plotting bundle stores this historical row label. It is an
+# input lookup key; every replacement row and newly rendered panel uses MoRAP.
 LEGACY_MODEL_NAME = "AnchorFlow-ST"
-MODEL_NAME = "Lin-MNP"
+MODEL_NAME = "MoRAP"
 
 legacy_build: Any = None
 legacy_plot: Any = None
@@ -84,7 +88,7 @@ def load_legacy_builders() -> None:
     if not LEGACY_CODE.is_dir():
         raise FileNotFoundError(
             "cSCC spatial maps require the companion bundle at "
-            f"{LEGACY_CODE}; set LIN_MNP_ARCHIVE_ROOT"
+            f"{LEGACY_CODE}; set MORAP_ARCHIVE_ROOT"
         )
     if str(LEGACY_CODE) not in sys.path:
         sys.path.insert(0, str(LEGACY_CODE))
@@ -134,32 +138,32 @@ def decode(values: np.ndarray) -> tuple[str, ...]:
 
 
 def prepare_cscc_prediction_index(output: Path) -> pd.DataFrame:
-    """Replace legacy model rows with section-level Lin-MNP artifacts."""
+    """Replace legacy model rows with section-level MoRAP artifacts."""
 
     old = ORIGINAL_BENCHMARK_INDEX()
     old = old.loc[~old["model"].eq(LEGACY_MODEL_NAME)].copy()
-    derived_root = output / "source_data/lin_mnp_predictions/cscc_benchmark_fixed997"
+    derived_root = output / "source_data/morap_predictions/cscc_benchmark_fixed997"
     derived_root.mkdir(parents=True, exist_ok=True)
     rows: list[dict[str, Any]] = []
     source_rows: list[dict[str, Any]] = []
 
     for fold_id in range(4):
-        source_path = LIN_MNP_BENCHMARK_ROOT / f"fold{fold_id}/outer_test_predictions.npz"
+        source_path = MORAP_BENCHMARK_ROOT / f"fold{fold_id}/outer_test_predictions.npz"
         if not source_path.is_file():
             raise FileNotFoundError(source_path)
         with np.load(source_path, allow_pickle=False) as archive:
-            predictions = np.asarray(archive["lin_mnp"], dtype=np.float32)
+            predictions = np.asarray(artifact_value(archive, "morap"), dtype=np.float32)
             sections = np.asarray(decode(archive["sections"]))
             barcodes = np.asarray(decode(archive["barcodes"]))
             genes = np.asarray(decode(archive["genes"]))
         if predictions.shape != (len(sections), len(genes)):
-            raise ValueError(f"invalid LIN_MNP Benchmark artifact: {source_path}")
+            raise ValueError(f"invalid MoRAP Benchmark artifact: {source_path}")
         for section in sorted(set(sections.tolist())):
             active = sections == section
             slide = legacy_plot.load_slides()[0][section]
             section_barcodes = tuple(barcodes[active].tolist())
             if set(section_barcodes) != set(slide.barcodes):
-                raise ValueError(f"LIN_MNP barcode mismatch: {section}")
+                raise ValueError(f"MoRAP barcode mismatch: {section}")
             target_path = derived_root / f"{section}.npz"
             np.savez_compressed(
                 target_path,
@@ -177,7 +181,7 @@ def prepare_cscc_prediction_index(output: Path) -> pd.DataFrame:
             checksum = sha256_file(target_path)
             rows.append(
                 {
-                    "method_id": "lin_mnp",
+                    "method_id": "morap",
                     "model": MODEL_NAME,
                     "slide_id": section,
                     "patient_id": slide.patient_id,
@@ -200,29 +204,29 @@ def prepare_cscc_prediction_index(output: Path) -> pd.DataFrame:
                     "source_sha256": sha256_file(source_path),
                     "derived_path": str(target_path.resolve()),
                     "derived_sha256": checksum,
-                    "model": "Lin-MNP",
+                    "model": "MoRAP",
                 }
             )
 
     latest = pd.DataFrame(rows)
     if len(latest) != 12 or latest["slide_id"].nunique() != 12:
-        raise ValueError(f"expected 12 LIN_MNP Benchmark sections, found {len(latest)}")
+        raise ValueError(f"expected 12 MoRAP Benchmark sections, found {len(latest)}")
     index = pd.concat([old, latest], ignore_index=True, sort=False)
     index.to_csv(output / "source_data/benchmark_prediction_index.csv", index=False)
     pd.DataFrame(source_rows).to_csv(
-        output / "source_data/lin_mnp_prediction_provenance.csv", index=False
+        output / "source_data/morap_prediction_provenance.csv", index=False
     )
     return index
 
 
 def latest_benchmark_prediction_index() -> pd.DataFrame:
     if _BENCHMARK_INDEX is None:
-        raise RuntimeError("LIN_MNP Benchmark prediction index has not been prepared")
+        raise RuntimeError("MoRAP Benchmark prediction index has not been prepared")
     return _BENCHMARK_INDEX.copy()
 
 
-class LIN_MNPCsccCommonSpace(legacy_plot.CsccCommonSpace):
-    """Use native LIN_MNP scores where PCC and panel min-max are affine invariant."""
+class MoRAPCsccCommonSpace(legacy_plot.CsccCommonSpace):
+    """Use native MoRAP scores where PCC and panel min-max are affine invariant."""
 
     def prediction(
         self,
@@ -241,12 +245,12 @@ class LIN_MNPCsccCommonSpace(legacy_plot.CsccCommonSpace):
             return self._prediction_cache[key]
         slide = self.slides[section]
         if slide.barcodes != target_barcodes or slide.genes != target_genes:
-            raise ValueError(f"LIN_MNP common-space identity mismatch: {section}")
+            raise ValueError(f"MoRAP common-space identity mismatch: {section}")
         native, _, _ = legacy_plot._aligned_prediction_archive(
             path, target_barcodes, target_genes
         )
         if not np.isfinite(native).all():
-            raise ValueError(f"invalid LIN_MNP prediction: {section}")
+            raise ValueError(f"invalid MoRAP prediction: {section}")
         self._prediction_cache[key] = native
         self._audit[key] = {
             "method": method,
@@ -271,7 +275,7 @@ def build_cscc_metrics(prediction_index: pd.DataFrame) -> pd.DataFrame:
     result = ORIGINAL_BUILD_CSCC_METRICS(prediction_index)
     observed = result.loc[result["model"].eq(MODEL_NAME)].copy()
     expected = pd.read_csv(
-        LIN_MNP_BENCHMARK_METRICS,
+        MORAP_BENCHMARK_METRICS,
         usecols=["slide_id", "patient_id", "gene", "pcc"],
     )
     expected = expected.loc[
@@ -285,15 +289,15 @@ def build_cscc_metrics(prediction_index: pd.DataFrame) -> pd.DataFrame:
         validate="one_to_one",
     )
     if len(check) != 4 * 997:
-        raise ValueError(f"incomplete LIN_MNP cSCC metric audit: {len(check)}")
+        raise ValueError(f"incomplete MoRAP cSCC metric audit: {len(check)}")
     delta = np.nanmax(np.abs(check["pcc_render"] - check["pcc_archive"]))
     if not np.isfinite(delta) or delta > 2e-6:
-        raise ValueError(f"LIN_MNP cSCC metric mismatch: max |delta|={delta}")
+        raise ValueError(f"MoRAP cSCC metric mismatch: max |delta|={delta}")
     return result
 
 
 def prepare_her2_index(output: Path) -> Path:
-    """Create the legacy-format index with fixed-contract LIN_MNP predictions."""
+    """Create the legacy-format index with fixed-contract MoRAP predictions."""
 
     old = pd.read_csv(LEGACY_HESPOTEX_INDEX, dtype={"slide_id": str})
     anchor_targets = old.loc[
@@ -304,14 +308,14 @@ def prepare_her2_index(output: Path) -> Path:
         ~(old["dataset"].eq("HER2+") & old["method"].eq(LEGACY_MODEL_NAME))
     ].copy()
     rows: list[dict[str, str]] = []
-    for path in sorted((LIN_MNP_HESPOTEX_ROOT / "her2/fixed").glob("fold*/predictions.npz")):
+    for path in sorted((MORAP_HESPOTEX_ROOT / "her2/fixed").glob("fold*/predictions.npz")):
         with np.load(path, allow_pickle=False) as archive:
             section = str(archive["sample_id"].item())
             patient = str(archive["patient_id"].item())
         rows.append(
             {
                 "dataset": "HER2+",
-                "method_id": "lin_mnp",
+                "method_id": "morap",
                 "method": MODEL_NAME,
                 "slide_id": section,
                 "patient_id": patient,
@@ -321,7 +325,7 @@ def prepare_her2_index(output: Path) -> Path:
         )
     latest = pd.DataFrame(rows)
     if len(latest) != 24 or latest["slide_id"].nunique() != 24:
-        raise ValueError(f"expected 24 LIN_MNP HER2+ sections, found {len(latest)}")
+        raise ValueError(f"expected 24 MoRAP HER2+ sections, found {len(latest)}")
     index = pd.concat([retained, latest], ignore_index=True, sort=False)
     index = reconstruct_missing_her2_render_artifacts(index, output)
     target = output / "source_data/hespotex_prediction_artifact_index.csv"
@@ -458,7 +462,7 @@ def prepare_her2_metrics(output: Path) -> pd.DataFrame:
         & baseline["method"].isin(methods - {MODEL_NAME})
     ].copy()
     latest = pd.read_csv(
-        LIN_MNP_HESPOTEX_METRICS,
+        MORAP_HESPOTEX_METRICS,
         usecols=["cohort", "slide_id", "patient_id", "gene", "pcc"],
     )
     latest = latest.loc[latest["cohort"].eq("her2")].drop(columns="cohort")
@@ -480,7 +484,7 @@ def prepare_her2_metrics(output: Path) -> pd.DataFrame:
 
 def latest_her2_section_metrics() -> pd.DataFrame:
     if _HER2_METRICS is None:
-        raise RuntimeError("LIN_MNP HER2+ metrics have not been prepared")
+        raise RuntimeError("MoRAP HER2+ metrics have not been prepared")
     return _HER2_METRICS.copy()
 
 
@@ -513,15 +517,15 @@ def write_readmes(output: Path, selected: pd.DataFrame) -> None:
     for name in ("cscc_benchmark_fixed997", "her2_hespotex_exact2759"):
         path = output / name / "README.md"
         text = path.read_text(encoding="utf-8")
-        text = text.replace("# cscc spatial-expression overviews", "# cSCC Lin-MNP spatial-expression overviews")
-        text = text.replace("# her2 spatial-expression overviews", "# HER2+ Lin-MNP spatial-expression overviews")
+        text = text.replace("# cscc spatial-expression overviews", "# cSCC MoRAP spatial-expression overviews")
+        text = text.replace("# her2 spatial-expression overviews", "# HER2+ MoRAP spatial-expression overviews")
         text = text.replace(
             "cSCC retains\n  the exhaustive ten qualifying genes",
             "cSCC retains\n  the ten highest-margin qualifying genes",
         )
         text += (
-            "\nThe Lin-MNP panels and all gene-selection statistics in this directory "
-            "were recomputed from the fixed-contract Lin-MNP predictions. "
+            "\nThe MoRAP panels and all gene-selection statistics in this directory "
+            "were recomputed from the fixed-contract MoRAP predictions. "
             "The comparison-method predictions and the established v4 visual design "
             "are unchanged.\n"
         )
@@ -536,7 +540,7 @@ def configure(output: Path) -> None:
     local_index = prepare_her2_index(output)
     _HER2_METRICS = prepare_her2_metrics(output)
 
-    common_space = LIN_MNPCsccCommonSpace()
+    common_space = MoRAPCsccCommonSpace()
     legacy_plot.HER2_METHODS = tuple(
         MODEL_NAME if method == LEGACY_MODEL_NAME else method
         for method in legacy_plot.HER2_METHODS
@@ -573,9 +577,9 @@ def update_metadata(output: Path) -> None:
             "created_by": str(Path(__file__).resolve()),
             "created_by_sha256": sha256_file(Path(__file__).resolve()),
             "style_and_selection_logic_reference": str(LEGACY_ROOT.resolve()),
-            "lin_mnp_model": "Lin-MNP",
-            "lin_mnp_benchmark_source": str(LIN_MNP_BENCHMARK_ROOT.resolve()),
-            "lin_mnp_hespotex_source": str(LIN_MNP_HESPOTEX_ROOT.resolve()),
+            "morap_model": "MoRAP",
+            "morap_benchmark_source": str(MORAP_BENCHMARK_ROOT.resolve()),
+            "morap_hespotex_source": str(MORAP_HESPOTEX_ROOT.resolve()),
             "her2_large_margin_threshold": 0.05,
             "her2_large_margin_threshold_note": (
                 "Updated from 0.25 because the promoted fixed-contract model has "
@@ -595,23 +599,23 @@ def update_metadata(output: Path) -> None:
         json.dumps(provenance, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
 
-    readme = f"""# Lin-MNP spatial-expression overviews
+    readme = f"""# MoRAP spatial-expression overviews
 
 This package applies the audited selection logic and exact 3 × 6 visual design
-from `{LEGACY_ROOT}` to the latest fixed-contract Lin-MNP model.
+from `{LEGACY_ROOT}` to the latest fixed-contract MoRAP model.
 
 - `cscc_benchmark_fixed997/`: cSCC Benchmark fixed-997 maps on the four
   non-redundant sections shared by all 16 plotted methods.
 - `her2_hespotex_exact2759/`: HER2+ HESPotEx exact-2,759 maps on one
   deterministic representative section per patient/H&E group.
-- `selected_genes.csv` and `selected_gene_sections.csv`: current LIN_MNP-based
+- `selected_genes.csv` and `selected_gene_sections.csv`: current MoRAP-based
   gene and section choices.
 - `panel_pcc.csv`: PCC recomputed from the exact arrays shown in every panel.
 - `spot_expression_detail.csv.gz`: plotted spot values and display-scaled values.
-- `source_data/`: the LIN_MNP prediction indices and source provenance used by
+- `source_data/`: the MoRAP prediction indices and source provenance used by
   this rebuild.
 
-Each panel contains the H&E image, ground truth, Lin-MNP and the same 15
+Each panel contains the H&E image, ground truth, MoRAP and the same 15
 comparison methods in the established order. Each map is independently
 min-max scaled for display only; PCC is computed before display scaling.
 
@@ -653,7 +657,7 @@ def write_manifest(output: Path) -> None:
     payload = {
         "schema_version": 1,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
-        "model": "Lin-MNP",
+        "model": "MoRAP",
         "files": files,
     }
     (output / "result_manifest.json").write_text(

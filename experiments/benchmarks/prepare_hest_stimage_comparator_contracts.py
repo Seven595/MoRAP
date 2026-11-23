@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 
-from lin_mnp.paths import ARCHIVE_ROOT, DATA_ROOT, RESULTS_ROOT
+from morap.paths import ARCHIVE_ROOT, DATA_ROOT, RESULTS_ROOT
 
 ARCHIVE = ARCHIVE_ROOT
 HEST = DATA_ROOT / "hest"

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Within-section adapter applied to the HEST Lin-MNP runs.
+"""Within-section adapter applied to the HEST MoRAP runs.
 
 On HEST the released spatial operator links only sections belonging to the same
 official patient fold, so it degenerates to the identity whenever the test fold
 holds a single section.  That is the common case: the selected `spatial_depth`
 is 0 on 25 of 29 folds with CTransPath and 26 of 29 with UNI-v1.  The published
-`Lin-MNP_full` aggregates are therefore almost entirely PFM + Ridge.
+`MoRAP_full` aggregates are therefore almost entirely PFM + Ridge.
 
 The cSCC neighbour control showed that a within-section morphology graph retains
 the propagation gain while requiring only one section. This runner starts from
@@ -14,9 +14,9 @@ operator.
 
 Reported arms per encoder:
 
-* ``published_lin_mnp`` -- the reported configuration, reproduced as an
+* ``published_morap`` -- the reported configuration, reproduced as an
   integrity check.
-* ``ridge_only``    -- `Lin-MNP_no_spatial_transport`, i.e. the adapter removed.
+* ``ridge_only``    -- `MoRAP_no_spatial_transport`, i.e. the adapter removed.
 * ``borda_k*`` / ``minimal_k*`` -- within-section adapter at several k.
 
 The declared transfer arm is ``borda_k128``, the cSCC setting carried over
@@ -35,13 +35,14 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from lin_mnp import model
-from lin_mnp.within_section import (
+from morap import model
+from morap.within_section import (
     apply_grid,
     mean_gene_pcc_and_mse,
     radial_pool_weights,
 )
-from lin_mnp.paths import ARCHIVE_ROOT, CACHE_ROOT, RESULTS_ROOT
+from morap.compat import artifact_value
+from morap.paths import ARCHIVE_ROOT, CACHE_ROOT, RESULTS_ROOT
 
 ARCHIVE = ARCHIVE_ROOT
 ARCHIVED_RESULTS = ARCHIVE / "legacy/development"
@@ -93,7 +94,7 @@ def slide_views(sample_id: str, spec: dict, weights: np.ndarray):
 def run(args):
     spec = ENCODERS[args.encoder]
     weights = radial_pool_weights()
-    arms = ["published_lin_mnp", "ridge_only"] + [
+    arms = ["published_morap", "ridge_only"] + [
         f"{n}_k{k}" for n in CONFIGS for k in K_GRID
     ]
     rows = []
@@ -106,7 +107,7 @@ def run(args):
         fold = path.parts[-2]
         with np.load(path, allow_pickle=False) as archive:
             target = archive["target"].astype(np.float32)
-            full = archive["lin_mnp"].astype(np.float32)
+            full = artifact_value(archive, "morap").astype(np.float32)
             ridge = archive["ridge"].astype(np.float32)
             sections = archive["sections"].astype(str)
             barcodes = archive["barcodes"].astype(str)
@@ -123,7 +124,7 @@ def run(args):
                 for k, value in produced.items():
                     adapted[f"{name}_k{k}"][mask] = value
 
-        scored = {"published_lin_mnp": full, "ridge_only": ridge} | adapted
+        scored = {"published_morap": full, "ridge_only": ridge} | adapted
         for arm, prediction in scored.items():
             rows.append({
                 "encoder": args.encoder, "dataset": dataset, "fold": fold,
@@ -137,7 +138,7 @@ def run(args):
     detail = pd.DataFrame(rows)
     per_dataset = detail.groupby(["arm", "dataset"], as_index=False)[["pcc", "mse"]].mean()
     summary = per_dataset.groupby("arm", as_index=False)[["pcc", "mse"]].mean()
-    baseline = float(summary.loc[summary.arm == "published_lin_mnp", "pcc"].iloc[0])
+    baseline = float(summary.loc[summary.arm == "published_morap", "pcc"].iloc[0])
     summary["delta_vs_published"] = summary.pcc - baseline
 
     out = args.output / args.encoder
@@ -153,7 +154,7 @@ def run(args):
         "configs": CONFIGS, "k_grid": list(K_GRID),
         "declared_transfer_arm": DECLARED_ARM,
         "inverse_temperature": model.INVERSE_TEMPERATURE,
-        "published_lin_mnp_pcc": baseline,
+        "published_morap_pcc": baseline,
         "published_pcc": spec["published"],
         "reproduction_abs_difference": abs(baseline - spec["published"]),
     }, indent=2) + "\n")
@@ -161,7 +162,7 @@ def run(args):
     print()
     print(summary.set_index("arm").loc[arms].to_string())
     print()
-    print(f"published_lin_mnp {baseline:.6f} vs reported {spec['published']:.6f} "
+    print(f"published_morap {baseline:.6f} vs reported {spec['published']:.6f} "
           f"|diff| {abs(baseline - spec['published']):.6f}")
 
 

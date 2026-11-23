@@ -21,7 +21,7 @@ HESPOTEX_ROOT = PROJECT_ROOT / "comparators/methods/HESpotEx"
 if str(HESPOTEX_ROOT) not in sys.path:
     sys.path.insert(0, str(HESPOTEX_ROOT))
 
-from lin_mnp.paths import RESULTS_ROOT
+from morap.paths import RESULTS_ROOT
 import run_cscc_reproduction as cscc
 import run_her2_reproduction as her2
 

@@ -37,13 +37,13 @@ from scipy.spatial import distance
 from scipy.sparse import issparse
 import torch
 
-from lin_mnp.benchmark.hespotex_metrics import (
+from morap.benchmark.hespotex_metrics import (
     DEFAULT_KL_EPSILON,
     per_gene_minmax_mse,
     per_gene_pcc,
     per_gene_spatial_kl,
 )
-from lin_mnp.paths import ARCHIVE_ROOT, DATA_ROOT, RESULTS_ROOT
+from morap.paths import ARCHIVE_ROOT, DATA_ROOT, RESULTS_ROOT
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent
 from model.expression_embedding import expression_GVAE  # noqa: E402

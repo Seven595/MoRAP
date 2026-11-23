@@ -8,8 +8,8 @@ and setting the path variables described in the main
 
 The release separates three workflow classes:
 
-1. **Reference method.** `lin-mnp train` creates cSCC outer-test predictions
-   from frozen descriptor caches, and `lin-mnp evaluate` verifies and scores
+1. **Reference method.** `morap train` creates cSCC outer-test predictions
+   from frozen descriptor caches, and `morap evaluate` verifies and scores
    the four folds.
 2. **Published comparators.** Scripts in `comparators/adapters/` place a
    published architecture on a declared fold, spot, gene, and target contract.
@@ -17,7 +17,7 @@ The release separates three workflow classes:
    hashes.
 3. **Manuscript aggregation.** Scripts in `experiments/` and `plotting/`
    consume sealed predictions and the companion artifact bundle. They do not
-   redefine Lin-MNP.
+   redefine MoRAP.
 
 Large source cohorts, pretrained weights, descriptor matrices, prediction
 artifacts, and the companion manuscript bundle are not stored in Git. Workflows
@@ -32,9 +32,9 @@ CTransPath, and local CTransPath caches documented in
 
 ```bash
 for fold in 0 1 2 3; do
-  lin-mnp train --fold "$fold" --device cuda:0
+  morap train --fold "$fold" --device cuda:0
 done
-lin-mnp evaluate
+morap evaluate
 ```
 
 Use `--device cpu` when CUDA is unavailable. The training phase fits only the
@@ -45,7 +45,7 @@ test targets and applies equal patient weighting.
 Default outputs:
 
 ```text
-$LIN_MNP_RESULTS_ROOT/cscc/folds/
+$MORAP_RESULTS_ROOT/cscc/folds/
 ├── fold0/
 ├── fold1/
 ├── fold2/
@@ -110,7 +110,7 @@ done
 Comparator-transfer results are generated with:
 
 ```bash
-python -m lin_mnp.analysis.evaluate_comparator_transfer
+python -m morap.analysis.evaluate_comparator_transfer
 ```
 
 All transfer analyses retain the base predictor and scoring target unchanged
@@ -126,7 +126,7 @@ python experiments/benchmarks/evaluate_cscc_added_benchmark_metrics.py
 ```
 
 The script writes its tables below
-`$LIN_MNP_RESULTS_ROOT/additional_comparators/cscc/evaluation/` unless
+`$MORAP_RESULTS_ROOT/additional_comparators/cscc/evaluation/` unless
 `--output` is supplied.
 
 ## 3. Figure workflows
@@ -144,17 +144,17 @@ views:
 
 ```bash
 python plotting/manuscript/make_framework_figure.py \
-  --output "$LIN_MNP_RESULTS_ROOT/figures/figure1.png"
+  --output "$MORAP_RESULTS_ROOT/figures/figure1.png"
 ```
 
 ### Figure 2: matched-descriptor attribution
 
 Requires
-`$LIN_MNP_ARCHIVE_ROOT/reports/comparator_results/benchmark_common_contract_attribution.csv`:
+`$MORAP_ARCHIVE_ROOT/reports/comparator_results/benchmark_common_contract_attribution.csv`:
 
 ```bash
 python plotting/manuscript/make_attribution_figure.py \
-  --output "$LIN_MNP_RESULTS_ROOT/figures/figure2.png"
+  --output "$MORAP_RESULTS_ROOT/figures/figure2.png"
 ```
 
 The upstream attribution runs are in `experiments/component_analysis/`. The
@@ -170,27 +170,27 @@ python experiments/component_analysis/run_benchmark_common_original_downstream.p
 
 Some encoder-specific attribution runners call preserved helpers in the
 companion artifact bundle; this dependency is explicit through
-`LIN_MNP_ARCHIVE_ROOT`.
+`MORAP_ARCHIVE_ROOT`.
 
 ### Benchmark end-point composite
 
 Requires the three sealed source panels under
-`$LIN_MNP_ARCHIVE_ROOT/figures/benchmark/panels/`:
+`$MORAP_ARCHIVE_ROOT/figures/benchmark/panels/`:
 
 ```bash
 python plotting/manuscript/make_benchmark_figure.py \
-  --output "$LIN_MNP_RESULTS_ROOT/figures/supplementary_benchmark_endpoints.png"
+  --output "$MORAP_RESULTS_ROOT/figures/supplementary_benchmark_endpoints.png"
 ```
 
 ### Spatial-expression maps
 
 ```bash
 python plotting/spatial_maps/build_cscc_spatial_expression_overviews.py \
-  --output "$LIN_MNP_RESULTS_ROOT/figures/spatial_maps" \
+  --output "$MORAP_RESULTS_ROOT/figures/spatial_maps" \
   --dpi 220 --workers 4
 
 python plotting/spatial_maps/build_hest_stimage_spatial_expression_overviews.py \
-  --output "$LIN_MNP_RESULTS_ROOT/figures/spatial_maps" \
+  --output "$MORAP_RESULTS_ROOT/figures/spatial_maps" \
   --dpi 220
 ```
 
@@ -201,10 +201,10 @@ rendering.
 
 | Analysis | Command |
 |---|---|
-| Encoder transfer | `python -m lin_mnp.analysis.evaluate_encoder_transfer --device cuda:0` |
-| Neighbour accuracy sensitivity | `python -m lin_mnp.analysis.analyze_accuracy_sensitivity` |
-| Propagation depth | `python -m lin_mnp.analysis.analyze_diffusion_depth` |
-| Descriptor graph views | `python -m lin_mnp.analysis.analyze_graph_views` |
+| Encoder transfer | `python -m morap.analysis.evaluate_encoder_transfer --device cuda:0` |
+| Neighbour accuracy sensitivity | `python -m morap.analysis.analyze_accuracy_sensitivity` |
+| Propagation depth | `python -m morap.analysis.analyze_diffusion_depth` |
+| Descriptor graph views | `python -m morap.analysis.analyze_graph_views` |
 | Within-section controls | `python experiments/neighbor_controls/run_within_section_control.py train-fold --fold FOLD_ID` |
 | Control aggregation | `python experiments/neighbor_controls/run_within_section_control.py evaluate` |
 | Single-fold efficiency | `python experiments/benchmarks/run_cscc_single_fold_efficiency.py --help` |
@@ -213,10 +213,10 @@ rendering.
 
 | Manuscript item | Primary entry point |
 |---|---|
-| cSCC linear readout and Lin-MNP | `lin-mnp train`, then `lin-mnp evaluate` |
+| cSCC linear readout and MoRAP | `morap train`, then `morap evaluate` |
 | HEST and STImage benchmark table | `experiments/benchmarks/run_hest_stimage_benchmarks.py` |
 | Benchmark and encoder transfer | `experiments/transfer/run_{hest,stimage,hespotex}_within_section.py` |
-| Comparator transfer | `python -m lin_mnp.analysis.evaluate_comparator_transfer` |
+| Comparator transfer | `python -m morap.analysis.evaluate_comparator_transfer` |
 | Framework figure | `plotting/manuscript/make_framework_figure.py` |
 | Attribution figure | `plotting/manuscript/make_attribution_figure.py` |
 | Benchmark composite | `plotting/manuscript/make_benchmark_figure.py` |

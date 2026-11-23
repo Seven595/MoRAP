@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Build selected-gene spatial maps for HEST and STImage.
 
-The renderer extends the established Lin-MNP spatial-expression overview to
+The renderer extends the established MoRAP spatial-expression overview to
 the two external benchmarks.  It uses one deterministic held-out seed-1/fold-0
-sample per organ/group, the latest Lin-MNP prediction, and every available
+sample per organ/group, the latest MoRAP prediction, and every available
 comparison-method prediction. Selection is descriptive and test based;
 it is never used as a cohort-level performance estimate.
 """
@@ -33,7 +33,8 @@ import pandas as pd
 from PIL import Image
 from scipy.spatial import cKDTree
 
-from lin_mnp.paths import ARCHIVE_ROOT, DATA_ROOT, RESULTS_ROOT
+from morap.compat import artifact_value
+from morap.paths import ARCHIVE_ROOT, DATA_ROOT, RESULTS_ROOT
 
 # Several archived STImage slides are genuine whole-slide PNGs larger than
 # Pillow's generic anti-decompression-bomb threshold.  Paths are fixed local
@@ -78,7 +79,7 @@ METHOD_IDS = (
     "stag",
 )
 DISPLAY_NAMES = {
-    "Lin-MNP": "Lin-MNP",
+    "MoRAP": "MoRAP",
     "hespotex": "HESpotEx",
     "he2gene": "HE2Gene",
     "asgnn": "asGNN",
@@ -242,7 +243,7 @@ def latest_prediction(record: dict[str, Any]) -> tuple[np.ndarray, Path]:
             active = sections == sample
             if not active.any():
                 continue
-            prediction = np.asarray(archive["lin_mnp"], dtype=np.float64)[active]
+            prediction = np.asarray(artifact_value(archive, "morap"), dtype=np.float64)[active]
             barcodes = np.asarray(decode(archive["barcodes"]))[active]
             genes = decode(archive["genes"])
         target = load_target(record)
@@ -272,8 +273,8 @@ def load_target(record: dict[str, Any]) -> dict[str, Any]:
 def load_record(record: dict[str, Any]) -> dict[str, Any]:
     target = load_target(record)
     latest, latest_path = latest_prediction(record)
-    predictions: dict[str, np.ndarray] = {"Lin-MNP": latest}
-    paths: dict[str, Path] = {"Lin-MNP": latest_path}
+    predictions: dict[str, np.ndarray] = {"MoRAP": latest}
+    paths: dict[str, Path] = {"MoRAP": latest_path}
     for method in METHOD_IDS:
         path = (
             CAMPAIGN_ROOT
@@ -306,7 +307,7 @@ def candidate_table(records: list[dict[str, Any]]) -> pd.DataFrame:
             finite_baselines = {
                 method: value
                 for method, value in pccs.items()
-                if method != "Lin-MNP" and np.isfinite(value)
+                if method != "MoRAP" and np.isfinite(value)
             }
             best_method = max(finite_baselines, key=finite_baselines.get)
             rows.append(
@@ -316,18 +317,18 @@ def candidate_table(records: list[dict[str, Any]]) -> pd.DataFrame:
                     "sample": loaded["sample"],
                     "fold_id": loaded["fold_id"],
                     "gene": gene,
-                    "lin_mnp_pcc": pccs["Lin-MNP"],
+                    "morap_pcc": pccs["MoRAP"],
                     "best_baseline_method": DISPLAY_NAMES[best_method],
                     "best_baseline_pcc": finite_baselines[best_method],
-                    "pcc_margin": pccs["Lin-MNP"] - finite_baselines[best_method],
+                    "pcc_margin": pccs["MoRAP"] - finite_baselines[best_method],
                 }
             )
     result = pd.DataFrame(rows)
-    result["lin_mnp_rank_within_sample"] = result.groupby(
+    result["morap_rank_within_sample"] = result.groupby(
         ["benchmark", "group", "sample"]
-    )["lin_mnp_pcc"].rank(ascending=False, method="first")
+    )["morap_pcc"].rank(ascending=False, method="first")
     return result.sort_values(
-        ["benchmark", "group", "lin_mnp_rank_within_sample"], kind="stable"
+        ["benchmark", "group", "morap_rank_within_sample"], kind="stable"
     ).reset_index(drop=True)
 
 
@@ -349,42 +350,42 @@ def select_genes(candidates: pd.DataFrame) -> pd.DataFrame:
     for benchmark, current in candidates.groupby("benchmark", sort=True):
         qualifying = current.loc[
             current["pcc_margin"].gt(0)
-            & current["lin_mnp_rank_within_sample"].le(10)
-        ].sort_values(["pcc_margin", "lin_mnp_pcc"], ascending=False)
+            & current["morap_rank_within_sample"].le(10)
+        ].sort_values(["pcc_margin", "morap_pcc"], ascending=False)
         for _, row in qualifying.head(10).iterrows():
             add(
                 row,
                 "benchmark_top10_advantage",
-                "Top-10 Lin-MNP gene within its representative sample and positive margin over every baseline; among these, one of the ten largest benchmark-wide margins.",
+                "Top-10 MoRAP gene within its representative sample and positive margin over every baseline; among these, one of the ten largest benchmark-wide margins.",
             )
 
         outside_top = current.loc[
             current["pcc_margin"].gt(0)
-            & current["lin_mnp_rank_within_sample"].gt(10)
-        ].sort_values(["pcc_margin", "lin_mnp_pcc"], ascending=False)
+            & current["morap_rank_within_sample"].gt(10)
+        ].sort_values(["pcc_margin", "morap_pcc"], ascending=False)
         for _, row in outside_top.head(5).iterrows():
             add(
                 row,
                 "benchmark_large_margin",
-                "Outside the within-sample Lin-MNP top 10 but among the five largest positive benchmark-wide margins over every baseline.",
+                "Outside the within-sample MoRAP top 10 but among the five largest positive benchmark-wide margins over every baseline.",
             )
 
         for group, group_rows in current.groupby("group", sort=True):
             winners = group_rows.loc[group_rows["pcc_margin"].gt(0)].sort_values(
-                ["pcc_margin", "lin_mnp_pcc"], ascending=False
+                ["pcc_margin", "morap_pcc"], ascending=False
             )
             if len(winners):
                 add(
                     winners.iloc[0],
                     "group_best_advantage",
-                    f"Largest Lin-MNP margin over every baseline in the {group} representative held-out sample.",
+                    f"Largest MoRAP margin over every baseline in the {group} representative held-out sample.",
                 )
             else:
-                control = group_rows.sort_values("lin_mnp_pcc", ascending=False).iloc[0]
+                control = group_rows.sort_values("morap_pcc", ascending=False).iloc[0]
                 add(
                     control,
                     "group_best_control_no_win",
-                    f"Highest-PCC Lin-MNP gene in {group}; retained as an explicit control because Lin-MNP does not beat the strongest baseline on any of this sample's 50 genes.",
+                    f"Highest-PCC MoRAP gene in {group}; retained as an explicit control because MoRAP does not beat the strongest baseline on any of this sample's 50 genes.",
                 )
 
     rows = []
@@ -393,7 +394,7 @@ def select_genes(candidates: pd.DataFrame) -> pd.DataFrame:
         value["selection_rationale"] = " ".join(value.pop("rationales"))
         rows.append(value)
     return pd.DataFrame(rows).sort_values(
-        ["benchmark", "group", "lin_mnp_rank_within_sample", "gene"], kind="stable"
+        ["benchmark", "group", "morap_rank_within_sample", "gene"], kind="stable"
     ).reset_index(drop=True)
 
 
@@ -640,12 +641,12 @@ def plot_one(
     if len(coordinates) != len(truth):
         raise ValueError("geometry/target length mismatch")
 
-    methods = ("Lin-MNP",) + METHOD_IDS
+    methods = ("MoRAP",) + METHOD_IDS
     pccs = {
         method: pearson(truth, loaded["predictions"][method][:, gene_index])
         for method in methods
     }
-    if not np.isclose(pccs["Lin-MNP"], float(row.lin_mnp_pcc), atol=2e-6):
+    if not np.isclose(pccs["MoRAP"], float(row.morap_pcc), atol=2e-6):
         raise ValueError(f"selection/render PCC mismatch: {loaded['benchmark']}/{loaded['group']}/{gene}")
 
     figure = plt.figure(figsize=(22.4, 14.4))
@@ -769,7 +770,7 @@ def plot_one(
         "gene": gene,
         "section": loaded["sample"],
         "selection_category": row.selection_category,
-        "lin_mnp_pcc": pccs["Lin-MNP"],
+        "morap_pcc": pccs["MoRAP"],
         "best_baseline_pcc": float(row.best_baseline_pcc),
         "pcc_margin": float(row.pcc_margin),
         "n_spots": len(truth),
@@ -800,7 +801,7 @@ def write_gzip_csv(rows: Iterable[dict[str, Any]], path: Path) -> None:
 
 def update_readmes(output: Path, selected: pd.DataFrame) -> None:
     root_path = output / "README.md"
-    root = root_path.read_text(encoding="utf-8") if root_path.is_file() else "# Lin-MNP spatial-expression overviews\n"
+    root = root_path.read_text(encoding="utf-8") if root_path.is_file() else "# MoRAP spatial-expression overviews\n"
     marker = "\n## HEST and STImage external selected-gene overviews\n"
     if marker in root:
         root = root.split(marker)[0].rstrip() + "\n"
@@ -808,7 +809,7 @@ def update_readmes(output: Path, selected: pd.DataFrame) -> None:
 {marker}
 The package now covers all four result families: cSCC, HER2+, HEST and
 STImage. HEST and STImage figures are stored under `hest_external_50gene/`
-and `stimage_external_50gene/`. They use the latest Lin-MNP prediction and all
+and `stimage_external_50gene/`. They use the latest MoRAP prediction and all
 23 available comparison methods in the established spatial-map visual
 language. Because this is H&E + ground truth + 24 methods, the external panel
 is expanded from 3 × 6 to 4 × 7 without dropping methods.
@@ -816,7 +817,7 @@ is expanded from 3 × 6 to 4 × 7 without dropping methods.
 One deterministic seed-1/fold-0 held-out section is used per HEST cancer group
 and STImage organ. Selection is descriptive: benchmark-wide top-10 advantage,
 large-margin genes, and one best-advantage gene per group. If a group has no
-Lin-MNP win among its 50 genes, its highest-PCC gene is retained and explicitly
+MoRAP win among its 50 genes, its highest-PCC gene is retained and explicitly
 marked as a no-win control. These test-selected maps do not define aggregate
 performance claims.
 
@@ -848,7 +849,7 @@ python -B \\
 
 This directory contains {len(subset)} selected gene/sample figures from
 {subset['group'].nunique()} cancer groups or organs. Each figure shows H&E,
-ground truth, Lin-MNP and all 23 available comparison methods.
+ground truth, MoRAP and all 23 available comparison methods.
 Every map is independently min-max scaled for display only; every PCC is
 recomputed from the unscaled arrays shown. The displayed sample is the first
 held-out sample in the archived seed-1/fold-0 contract for its group.
@@ -882,7 +883,7 @@ def update_manifest(output: Path) -> None:
     payload = {
         "schema_version": 2,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
-        "model": "Lin-MNP",
+        "model": "MoRAP",
         "datasets": ["cSCC", "HER2+", "HEST", "STImage"],
         "files": files,
     }
@@ -964,7 +965,7 @@ def main() -> None:
     inventory.to_csv(output / "external_figure_inventory.csv", index=False)
     panels.to_csv(output / "external_panel_pcc.csv", index=False)
 
-    # Exact numerical audit: all stored Lin-MNP and strongest-baseline values
+    # Exact numerical audit: all stored MoRAP and strongest-baseline values
     # must equal the recomputed values used by the renderer.
     audit = selected.merge(
         panels.loc[:, ["dataset", "group", "gene", "section", "method", "pcc"]],
@@ -972,20 +973,20 @@ def main() -> None:
         right_on=["group", "gene", "section"],
         how="left",
     )
-    current_model = audit.loc[audit["method"].eq("Lin-MNP")]
+    current_model = audit.loc[audit["method"].eq("MoRAP")]
     max_delta = float(
         np.nanmax(
-            np.abs(current_model["lin_mnp_pcc"] - current_model["pcc"])
+            np.abs(current_model["morap_pcc"] - current_model["pcc"])
         )
     )
     if max_delta > 2e-6:
-        raise ValueError(f"render audit failed: max Lin-MNP delta={max_delta}")
+        raise ValueError(f"render audit failed: max MoRAP delta={max_delta}")
 
     provenance = {
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "created_by": str(Path(__file__).resolve()),
         "created_by_sha256": sha256_file(Path(__file__).resolve()),
-        "latest_model": "Lin-MNP",
+        "latest_model": "MoRAP",
         "benchmarks": ["HEST", "STImage"],
         "comparison_campaign": str(CAMPAIGN_ROOT.resolve()),
         "latest_prediction_roots": {
@@ -999,7 +1000,7 @@ def main() -> None:
         "render_grid": "4x7",
         "panel_scaling": "independent min-max for display only",
         "pcc_space": "unscaled archived 50-gene target/prediction arrays",
-        "lin_mnp_render_audit_max_abs_delta": max_delta,
+        "morap_render_audit_max_abs_delta": max_delta,
         "hest_background": "publisher-deposited downscaled_fullres H&E embedded in h5ad",
         "stimage_background": "archived raw H&E image",
     }

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Neighbour-selection controls for the cSCC Lin-MNP operator.
+"""Neighbour-selection controls for the cSCC MoRAP operator.
 
-The pointwise readout is loaded from the reference Lin-MNP fold outputs and
+The pointwise readout is loaded from the reference MoRAP fold outputs and
 held fixed. Only the graph changes. Every graph is built from target-free
 descriptors or coordinates; outer-test labels are opened only by ``evaluate``
 after all prediction artifacts have been verified.
@@ -11,7 +11,7 @@ Arms:
 * ``identity`` -- the Ridge prediction with no spatial operator.
 * ``within_section_borda_k64`` -- same Borda context/local similarity, k=64,
   gallery restricted to the query section excluding self.
-* ``within_section_borda_k128`` -- same, k=128, matching Lin-MNP total
+* ``within_section_borda_k128`` -- same, k=128, matching MoRAP total
   neighbour count (64 per other section × 2 other sections).
 * ``within_section_coord_k128`` -- Euclidean pixel-coordinate kNN, k=128,
   softmax on the same rank-to-[0,1] map used by Borda.
@@ -19,7 +19,7 @@ Arms:
   in the same section (seeded).
 * ``cross_section_random_k128`` -- 64 random spots from each other section,
   uniform within section, equal section mass.
-* ``cross_section_lin_mnp`` -- the released operator (must recover 0.456993).
+* ``cross_section_morap`` -- the released operator (must recover 0.456993).
 
 """
 
@@ -34,8 +34,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from lin_mnp import model
-from lin_mnp.paths import CACHE_ROOT, RESULTS_ROOT
+from morap import model
+from morap.compat import artifact_value
+from morap.paths import CACHE_ROOT, RESULTS_ROOT
 
 FOLDS = Path(model.CONFIG["folds"])
 BASELINE_RESULTS = RESULTS_ROOT / "cscc/folds"
@@ -49,7 +50,7 @@ ARMS = (
     "within_section_coord_k128",
     "within_section_random_k128",
     "cross_section_random_k128",
-    "cross_section_lin_mnp",
+    "cross_section_morap",
 )
 
 
@@ -135,7 +136,7 @@ def borda_matrix(context, local):
 def coord_similarity(coordinates):
     delta = coordinates[:, None, :] - coordinates[None, :, :]
     distance = np.sqrt(np.square(delta).sum(-1))
-    # Rank-to-[0,1] map, identical to Lin-MNP Borda after the two ranks are averaged.
+    # Rank-to-[0,1] map, identical to MoRAP Borda after the two ranks are averaged.
     order = np.argsort(distance, axis=1, kind="stable")
     rank = np.empty_like(order, dtype=np.int32)
     np.put_along_axis(rank, order, np.arange(len(coordinates), dtype=np.int32)[None, :], axis=1)
@@ -216,7 +217,7 @@ def train_fold(args):
         "cross_section_random_k128": cross_section_random_graph(
             sections, K_PER_OTHER, rng
         ),
-        "cross_section_lin_mnp": model.build_section_balanced_graph(
+        "cross_section_morap": model.build_section_balanced_graph(
             sections, context, local
         ),
     }
@@ -227,9 +228,9 @@ def train_fold(args):
 
     # The released operator must reproduce the archived BASELINE_RESULTS final prediction.
     with np.load(source, allow_pickle=False) as archive:
-        reference = archive["lin_mnp"].astype(np.float64)
+        reference = artifact_value(archive, "morap").astype(np.float64)
     recovered = float(np.max(np.abs(
-        predictions["cross_section_lin_mnp"].astype(np.float64) - reference
+        predictions["cross_section_morap"].astype(np.float64) - reference
     )))
 
     output.mkdir(parents=True)
@@ -242,9 +243,9 @@ def train_fold(args):
     metadata = {
         "schema_version": 1,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
-        "experiment": "within-section smoothing control for Lin-MNP propagation",
+        "experiment": "within-section smoothing control for MoRAP propagation",
         "fold": fold,
-        "readout": "reference Lin-MNP pointwise patient-balanced Ridge",
+        "readout": "reference MoRAP pointwise patient-balanced Ridge",
         "pointwise_source": str(source),
         "pointwise_source_sha256": model.sha256(source),
         "neighbor_protocol": {
@@ -253,7 +254,7 @@ def train_fold(args):
             "inverse_temperature": model.INVERSE_TEMPERATURE,
             "every_patient_has_three_sections": True,
         },
-        "cross_section_lin_mnp_vs_baseline_max_abs": recovered,
+        "cross_section_morap_vs_baseline_max_abs": recovered,
         "prediction_sha256": model.sha256(prediction_path),
         "prediction_array_sha256": {
             name: model.array_sha256(value) for name, value in predictions.items()
@@ -297,7 +298,7 @@ def evaluate(args):
     rows = []
     recoveries = []
     for fold_id, root, metadata in records:
-        recoveries.append(metadata["cross_section_lin_mnp_vs_baseline_max_abs"])
+        recoveries.append(metadata["cross_section_morap_vs_baseline_max_abs"])
         fold = metadata["fold"]
         target = model.LabeledSpotDataset(model.CONFIG, fold["test_sample_ids"])
         with np.load(root / "outer_test_predictions.npz", allow_pickle=False) as archive:
@@ -336,7 +337,7 @@ def evaluate(args):
         "schema_version": 1,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "aggregation": "section-gene -> patient-gene -> equal four-patient gene -> panel",
-        "lin_mnp_recovery_max_abs_per_fold": recoveries,
+        "morap_recovery_max_abs_per_fold": recoveries,
         "outer_test_used_for_evaluation_only": True,
     }, output / "metadata.json")
 
@@ -345,7 +346,7 @@ def evaluate(args):
     print()
     print(patient.pivot(index="arm", columns="patient_id", values="pcc").loc[order].to_string())
     print()
-    print("Lin-MNP recovery max-abs per fold:", recoveries)
+    print("MoRAP recovery max-abs per fold:", recoveries)
 
 
 def main():

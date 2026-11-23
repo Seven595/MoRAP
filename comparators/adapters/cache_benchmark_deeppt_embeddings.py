@@ -21,8 +21,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from lin_mnp.benchmark.benchmark_external import PATCH_ROOT  # noqa: E402
-from lin_mnp.paths import CACHE_ROOT
+from morap.benchmark.benchmark_external import PATCH_ROOT  # noqa: E402
+from morap.paths import CACHE_ROOT
 
 
 DEFAULT_OUTPUT = CACHE_ROOT / "cscc/deeppt_resnet50"

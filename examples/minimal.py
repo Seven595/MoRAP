@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Run Lin-MNP's numerical core on deterministic synthetic descriptors."""
+"""Run MoRAP's numerical core on deterministic synthetic descriptors."""
 
 from __future__ import annotations
 
 import numpy as np
 
-from lin_mnp import model
+from morap import model
 
 
 def main() -> None:
@@ -24,7 +24,7 @@ def main() -> None:
     propagated = model.forward(context, local, sections, artifact)
 
     print(f"pointwise shape: {pointwise.shape}")
-    print(f"Lin-MNP shape:   {propagated.shape}")
+    print(f"MoRAP shape:     {propagated.shape}")
     print(f"finite output:   {bool(np.isfinite(propagated).all())}")
 
 

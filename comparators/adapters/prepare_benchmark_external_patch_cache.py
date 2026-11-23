@@ -22,7 +22,7 @@ from typing import Sequence
 import numpy as np
 from PIL import Image
 
-from lin_mnp.paths import CACHE_ROOT, DATA_ROOT
+from morap.paths import CACHE_ROOT, DATA_ROOT
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]

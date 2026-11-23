@@ -4,7 +4,7 @@
 Real predictors only reach PCC 0.42 on cSCC, so the archived comparisons cannot
 say whether the operator would still help an accurate pointwise predictor.  This
 script sweeps synthetic pointwise predictors of controlled accuracy, built from
-the held-out target itself, and applies the unchanged Lin-MNP operator to each.
+the held-out target itself, and applies the unchanged MoRAP operator to each.
 
 Two noise models bracket the real case:
 
@@ -18,7 +18,7 @@ The synthetic predictors use held-out expression by construction.  They are a
 diagnostic of the operator, not a prediction method.
 
 Usage:
-  python -m lin_mnp.analysis.analyze_accuracy_sensitivity
+  python -m morap.analysis.analyze_accuracy_sensitivity
 """
 
 from __future__ import annotations
@@ -30,9 +30,9 @@ from pathlib import Path
 
 import numpy as np
 
-from lin_mnp import model
-from lin_mnp.benchmark import benchmark_external as benchmark
-from lin_mnp.paths import RESULTS_ROOT
+from morap import model
+from morap.benchmark import benchmark_external as benchmark
+from morap.paths import RESULTS_ROOT
 
 TARGETS = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99)
 REPEATS = 5
@@ -169,7 +169,7 @@ def main():
     payload = {
         "schema_version": 1,
         "protocol": "cSCC fixed-997 strict patient CV4, four held-out patients",
-        "operator": "unchanged Lin-MNP: 64 neighbours per other section, inverse "
+        "operator": "unchanged MoRAP: 64 neighbours per other section, inverse "
                     "temperature 10, equal Borda fusion, one step",
         "synthetic_predictors_use_heldout_expression": True,
         "repeats_per_point": REPEATS,

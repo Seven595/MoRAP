@@ -51,11 +51,11 @@ from torch.utils.data import DataLoader, Dataset
 import torchvision
 from sklearn.neighbors import NearestNeighbors
 
-from lin_mnp.paths import ARCHIVE_ROOT, CACHE_ROOT, DATA_ROOT, REPOSITORY_ROOT, RESULTS_ROOT
+from morap.paths import ARCHIVE_ROOT, CACHE_ROOT, DATA_ROOT, REPOSITORY_ROOT, RESULTS_ROOT
 
 ARCHIVE = ARCHIVE_ROOT
 PROJECT = REPOSITORY_ROOT
-CONFIG = PROJECT / "lin_mnp/configs/cscc_patient_cv4.json"
+CONFIG = PROJECT / "morap/configs/cscc_patient_cv4.json"
 DATA = DATA_ROOT / "cscc/derived"
 PATCH_ROOT = CACHE_ROOT / "cscc/benchmark_patches"
 LABEL_ROOT = DATA_ROOT / "cscc/labels"

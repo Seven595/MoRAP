@@ -22,7 +22,7 @@ from typing import Any, Mapping
 import numpy as np
 import pandas as pd
 
-from lin_mnp.paths import ARCHIVE_ROOT, DATA_ROOT, RESULTS_ROOT
+from morap.paths import ARCHIVE_ROOT, DATA_ROOT, RESULTS_ROOT
 
 ARCHIVE = ARCHIVE_ROOT
 LABELS = DATA_ROOT / "cscc/labels"

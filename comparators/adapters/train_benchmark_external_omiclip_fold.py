@@ -25,14 +25,14 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from lin_mnp.benchmark.benchmark_external import (  # noqa: E402
+from morap.benchmark.benchmark_external import (  # noqa: E402
     PATCH_ROOT,
     apply_target_transform,
     fit_target_transform,
     load_folds,
     load_slides,
 )
-from lin_mnp.paths import CACHE_ROOT, MODEL_ROOT, RESULTS_ROOT
+from morap.paths import CACHE_ROOT, MODEL_ROOT, RESULTS_ROOT
 
 
 DEFAULT_OUTPUT = RESULTS_ROOT / "comparator_reruns"

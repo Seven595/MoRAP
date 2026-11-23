@@ -10,7 +10,7 @@ import subprocess
 import sys
 import time
 
-from lin_mnp.paths import ARCHIVE_ROOT, REPOSITORY_ROOT, RESULTS_ROOT
+from morap.paths import ARCHIVE_ROOT, REPOSITORY_ROOT, RESULTS_ROOT
 
 PROJECT = REPOSITORY_ROOT
 PYTHON = Path(sys.executable)

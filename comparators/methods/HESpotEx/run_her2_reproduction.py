@@ -25,7 +25,7 @@ import scanpy as sc
 import torch
 
 import run_cscc_reproduction as base
-from lin_mnp.paths import ARCHIVE_ROOT, DATA_ROOT, RESULTS_ROOT
+from morap.paths import ARCHIVE_ROOT, DATA_ROOT, RESULTS_ROOT
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent

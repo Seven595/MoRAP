@@ -40,23 +40,23 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from lin_mnp.benchmark.benchmark_external import (  # noqa: E402
+from morap.benchmark.benchmark_external import (  # noqa: E402
     PATCH_ROOT,
     apply_target_transform,
     fit_target_transform,
     load_folds,
     load_slides,
 )
-from lin_mnp.paths import CACHE_ROOT, RESULTS_ROOT
+from morap.paths import environment_value, CACHE_ROOT, RESULTS_ROOT
 
 
 DEFAULT_OUTPUT = RESULTS_ROOT / "additional_comparator_reruns"
-PHIKON_ROOT = Path(os.environ.get(
-    "LIN_MNP_PHIKON_ROOT",
+PHIKON_ROOT = Path(environment_value(
+    "MORAP_PHIKON_ROOT",
     str(CACHE_ROOT / "cscc/phikon_v2"),
 ))
-RESNET_ROOT = Path(os.environ.get(
-    "LIN_MNP_RESNET_ROOT",
+RESNET_ROOT = Path(environment_value(
+    "MORAP_RESNET_ROOT",
     str(CACHE_ROOT / "cscc/deeppt_resnet50"),
 ))
 
@@ -369,7 +369,7 @@ def run_heclip(context, args):
         val_predictions = split_predictions(flat, fold.val_ids, slides)
         score = finite_mean_gene_pcc(val_predictions, val_targets)
         if (
-            os.environ.get("LIN_MNP_CHECKPOINT_MODE") == "fixed_final_epoch"
+            environment_value("MORAP_CHECKPOINT_MODE") == "fixed_final_epoch"
             or (np.isfinite(score) and score > best_score)
         ):
             best_score, best_epoch = score, epoch
@@ -528,7 +528,7 @@ def run_he2gene(context, args):
             split_predictions(flat, fold.val_ids, slides), val_targets
         )
         fixed_final_epoch = (
-            os.environ.get("LIN_MNP_CHECKPOINT_MODE") == "fixed_final_epoch"
+            environment_value("MORAP_CHECKPOINT_MODE") == "fixed_final_epoch"
         )
         if fixed_final_epoch or (np.isfinite(score) and score > best_score):
             best_score, best_epoch, no_improvement = score, epoch, 0
@@ -574,7 +574,7 @@ def run_he2gene(context, args):
 
 def load_phikon(slides) -> dict[str, np.ndarray]:
     result = {}
-    requested_crop = int(os.environ.get("LIN_MNP_PHIKON_CROP_SIZE", "192"))
+    requested_crop = int(environment_value("MORAP_PHIKON_CROP_SIZE", "192"))
     for sample_id, slide in slides.items():
         with np.load(PHIKON_ROOT / "slides" / f"{sample_id}.npz", allow_pickle=False) as archive:
             if tuple(archive["barcodes"].astype(str)) != slide.barcodes:
@@ -660,7 +660,7 @@ def run_gr2st(context, args):
             validation, {sample: targets[sample] for sample in fold.val_ids}
         )
         if (
-            os.environ.get("LIN_MNP_CHECKPOINT_MODE") == "fixed_final_epoch"
+            environment_value("MORAP_CHECKPOINT_MODE") == "fixed_final_epoch"
             or (np.isfinite(score) and score > best_score)
         ):
             best_score, best_epoch = score, epoch
@@ -682,7 +682,7 @@ def run_gr2st(context, args):
     return predict_gr2st(model, features, fold.test_ids, device), history, best_epoch, best_score, {
         "image_feature": (
             "Phikon-v2 CLS1024 at fixed "
-            f"{int(os.environ.get('LIN_MNP_PHIKON_CROP_SIZE', '192'))}px crop"
+            f"{int(environment_value('MORAP_PHIKON_CROP_SIZE', '192'))}px crop"
         ),
         "cell_type_adapter": "single unknown class because the data contract has no spot cell-type labels",
         "graph_batch_cap": config.batch_size,
@@ -800,7 +800,7 @@ def train_graph_candidate(module, records, val_records, device, genes, hidden, l
         graph_loss(model, records, device, train=True, optimizer=optimizer)
         score = finite_mean_gene_pcc(predict_graphs(model, val_records, device), targets)
         fixed_final_epoch = (
-            os.environ.get("LIN_MNP_CHECKPOINT_MODE") == "fixed_final_epoch"
+            environment_value("MORAP_CHECKPOINT_MODE") == "fixed_final_epoch"
         )
         if fixed_final_epoch or (np.isfinite(score) and score > best_score):
             best_score, best_epoch, no_improvement = score, epoch, 0
@@ -992,10 +992,10 @@ def write_outputs(context, predictions, history, best_epoch, best_score, adaptat
             "path": str(path.relative_to(staging)), "sha256": sha256_file(path),
             "n_spots": expected[0], "n_genes": expected[1],
         })
-    external_contract_path = os.environ.get("LIN_MNP_EXTERNAL_CONTRACT")
-    selection_scope = os.environ.get("LIN_MNP_CHECKPOINT_SELECTION_SCOPE")
+    external_contract_path = environment_value("MORAP_EXTERNAL_CONTRACT")
+    selection_scope = environment_value("MORAP_CHECKPOINT_SELECTION_SCOPE")
     fixed_final_epoch = (
-        os.environ.get("LIN_MNP_CHECKPOINT_MODE") == "fixed_final_epoch"
+        environment_value("MORAP_CHECKPOINT_MODE") == "fixed_final_epoch"
     )
     selection_metadata = (
         {

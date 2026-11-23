@@ -1,4 +1,4 @@
-"""Unit tests for the label-free Lin-MNP numerical core."""
+"""Unit tests for the label-free MoRAP numerical core."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ import unittest
 import numpy as np
 import torch
 
-from lin_mnp import model
-from lin_mnp import within_section
+from morap import model
+from morap import within_section
 
 
 class PatientBalancedRidgeTests(unittest.TestCase):

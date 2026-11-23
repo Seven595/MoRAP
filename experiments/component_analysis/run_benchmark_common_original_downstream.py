@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 import sys
 
-from lin_mnp.paths import REPOSITORY_ROOT, RESULTS_ROOT
+from morap.paths import REPOSITORY_ROOT, RESULTS_ROOT
 
 PROJECT = REPOSITORY_ROOT
 SCRIPTS = PROJECT / "comparators/adapters"
@@ -59,7 +59,7 @@ def force_common_target(module) -> None:
 
 
 def run(method: str, fold: int, device: str, output: Path) -> Path:
-    os.environ["LIN_MNP_CHECKPOINT_SELECTION_SCOPE"] = "inner_validation"
+    os.environ["MORAP_CHECKPOINT_SELECTION_SCOPE"] = "inner_validation"
     if method == "gr2st":
         module = load_script("common_raw_additional", "train_additional_comparators_fold.py")
         force_common_target(module)

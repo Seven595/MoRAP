@@ -22,7 +22,8 @@ from typing import Sequence
 
 import numpy as np
 
-from lin_mnp.paths import ARCHIVE_ROOT, REPOSITORY_ROOT, RESULTS_ROOT
+from morap.compat import compatible_environment
+from morap.paths import ARCHIVE_ROOT, REPOSITORY_ROOT, RESULTS_ROOT
 
 ARCHIVE = ARCHIVE_ROOT
 PROJECT = REPOSITORY_ROOT
@@ -80,21 +81,21 @@ def contracts() -> list[dict[str, object]]:
 def environment(contract: Path, gpu: str, threads: int) -> dict[str, str]:
     value = os.environ.copy()
     value.update({
-        "LIN_MNP_EXTERNAL_CONTRACT": str(contract.resolve()),
-        "LIN_MNP_EGN_EMBEDDING_ROOT": str((FEATURES / "egn").resolve()),
-        "LIN_MNP_DEEPPT_FEATURE_ROOT": str((FEATURES / "deeppt").resolve()),
-        "LIN_MNP_ISTAR_FEATURE_ROOT": str((FEATURES / "istar").resolve()),
-        "LIN_MNP_CELLPOSE_NUCLEI_ROOT": str((FEATURES / "cellpose/slides").resolve()),
-        "LIN_MNP_UNI_ROOT": str((FEATURES / "uni_v1").resolve()),
+        "MORAP_EXTERNAL_CONTRACT": str(contract.resolve()),
+        "MORAP_EGN_EMBEDDING_ROOT": str((FEATURES / "egn").resolve()),
+        "MORAP_DEEPPT_FEATURE_ROOT": str((FEATURES / "deeppt").resolve()),
+        "MORAP_ISTAR_FEATURE_ROOT": str((FEATURES / "istar").resolve()),
+        "MORAP_CELLPOSE_NUCLEI_ROOT": str((FEATURES / "cellpose/slides").resolve()),
+        "MORAP_UNI_ROOT": str((FEATURES / "uni_v1").resolve()),
         # GR2ST's released adapter appends ``slides/<sample>.npz`` itself.
-        "LIN_MNP_PHIKON_ROOT": str((FEATURES / "phikon").resolve()),
-        "LIN_MNP_PHIKON_CROP_SIZE": "224",
-        "LIN_MNP_RESNET_ROOT": str((FEATURES / "deeppt").resolve()),
-        "LIN_MNP_CHECKPOINT_SELECTION_SCOPE": "inner_validation",
+        "MORAP_PHIKON_ROOT": str((FEATURES / "phikon").resolve()),
+        "MORAP_PHIKON_CROP_SIZE": "224",
+        "MORAP_RESNET_ROOT": str((FEATURES / "deeppt").resolve()),
+        "MORAP_CHECKPOINT_SELECTION_SCOPE": "inner_validation",
         "CUDA_VISIBLE_DEVICES": gpu, "OMP_NUM_THREADS": str(threads),
         "MKL_NUM_THREADS": str(threads), "HF_HUB_OFFLINE": "1",
     })
-    return value
+    return compatible_environment(value)
 
 
 def fold_command(method: str, fold: int, seed: int, output: Path, epochs: int) -> list[str]:

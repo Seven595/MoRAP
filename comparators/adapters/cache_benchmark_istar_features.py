@@ -24,8 +24,8 @@ ISTAR_ROOT = PROJECT_ROOT / "comparators/methods/iStar"
 if str(ISTAR_ROOT) not in sys.path:
     sys.path.insert(0, str(ISTAR_ROOT))
 
-from lin_mnp.benchmark.benchmark_external import PATCH_ROOT  # noqa: E402
-from lin_mnp.paths import CACHE_ROOT
+from morap.benchmark.benchmark_external import PATCH_ROOT  # noqa: E402
+from morap.paths import environment_value, CACHE_ROOT
 from hipt_model_utils import get_vit256, get_vit4k  # noqa: E402
 
 
@@ -63,7 +63,7 @@ def build_cache(args: argparse.Namespace) -> Path:
         if not path.is_file() or path.stat().st_size < 100_000_000:
             raise FileNotFoundError(f"iStar HIPT checkpoint is missing or truncated: {path}")
 
-    external_contract = bool(os.environ.get("LIN_MNP_EXTERNAL_CONTRACT"))
+    external_contract = bool(environment_value("MORAP_EXTERNAL_CONTRACT"))
     if external_contract:
         patch_manifest = json.loads(
             (PATCH_ROOT / "manifest.json").read_text(encoding="utf-8")
@@ -73,7 +73,7 @@ def build_cache(args: argparse.Namespace) -> Path:
         )
         sample_ids = tuple(str(row["sample_id"]) for row in manifest_rows)
     else:
-        from lin_mnp.benchmark.benchmark_external import load_slides
+        from morap.benchmark.benchmark_external import load_slides
         slides, _ = load_slides()
         sample_ids = tuple(sorted(
             min(sample for sample, slide in slides.items() if slide.patient_id == patient)

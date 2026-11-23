@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "lin-mnp"
+name = "morap"
 version = "0.1.0"
-description = "Linear readout with morphology-neighbour propagation for spatial gene-expression prediction"
+description = "MoRAP: morphology-guided readout and propagation for histology-based spatial gene expression prediction"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -35,10 +35,13 @@ figures = [
 ]
 
 [project.scripts]
-lin-mnp = "lin_mnp.model:main"
+morap = "morap.model:main"
+
+[project.urls]
+Repository = "https://github.com/Seven595/MoRAP"
 
 [tool.setuptools.packages.find]
-include = ["lin_mnp*"]
+include = ["morap*"]
 
 [tool.setuptools.package-data]
-lin_mnp = ["configs/*.json"]
+morap = ["configs/*.json"]

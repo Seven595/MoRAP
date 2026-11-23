@@ -27,20 +27,20 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from lin_mnp.benchmark.benchmark_external import (  # noqa: E402
+from morap.benchmark.benchmark_external import (  # noqa: E402
     PATCH_ROOT,
     apply_target_transform,
     fit_target_transform,
     load_folds,
     load_slides,
 )
-from lin_mnp.paths import CACHE_ROOT, RESULTS_ROOT
+from morap.paths import environment_value, CACHE_ROOT, RESULTS_ROOT
 
 
 DEFAULT_OUTPUT = RESULTS_ROOT / "comparator_reruns"
 CACHE_ROOT = Path(
-    os.environ.get(
-        "LIN_MNP_ISTAR_FEATURE_ROOT",
+    environment_value(
+        "MORAP_ISTAR_FEATURE_ROOT",
         str(CACHE_ROOT / "cscc/istar_hipt"),
     )
 )
@@ -197,9 +197,9 @@ def train_fold(args: argparse.Namespace) -> Path:
     cache_rows = {row["sample_id"]: row for row in cache_metadata["slides"]}
     slides, genes = load_slides()
     fold = load_folds()[args.fold]
-    external_contract = bool(os.environ.get("LIN_MNP_EXTERNAL_CONTRACT"))
+    external_contract = bool(environment_value("MORAP_EXTERNAL_CONTRACT"))
     fixed_final_epoch = (
-        os.environ.get("LIN_MNP_CHECKPOINT_MODE") == "fixed_final_epoch"
+        environment_value("MORAP_CHECKPOINT_MODE") == "fixed_final_epoch"
     )
     if external_contract:
         train_ids, val_ids, test_ids = fold.train_ids, fold.val_ids, fold.test_ids
@@ -359,13 +359,13 @@ def train_fold(args: argparse.Namespace) -> Path:
         "seed": seed, "device": str(device),
         "best_epoch_selected_by_validation_only": (
             best_epoch
-            if os.environ.get("LIN_MNP_CHECKPOINT_SELECTION_SCOPE")
+            if environment_value("MORAP_CHECKPOINT_SELECTION_SCOPE")
             == "inner_validation"
             else None
         ),
         "best_epoch_selected_by_outer_test": (
             best_epoch
-            if os.environ.get("LIN_MNP_CHECKPOINT_SELECTION_SCOPE")
+            if environment_value("MORAP_CHECKPOINT_SELECTION_SCOPE")
             == "outer_test"
             else None
         ),
@@ -373,8 +373,8 @@ def train_fold(args: argparse.Namespace) -> Path:
         "checkpoint_selection_scope": (
             "fixed_epoch_selected_on_inner_validation_then_refit_on_all_outer_train"
             if fixed_final_epoch
-            else os.environ.get(
-                "LIN_MNP_CHECKPOINT_SELECTION_SCOPE", "inner_validation"
+            else environment_value(
+                "MORAP_CHECKPOINT_SELECTION_SCOPE", "inner_validation"
             )
         ),
         "best_validation_mean_gene_pcc": best_score,

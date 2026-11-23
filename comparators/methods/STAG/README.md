@@ -1,4 +1,4 @@
-# STAG resources used by Lin-MNP
+# STAG resources used by MoRAP
 
 The manuscript adapter is implemented in
 [`experiments/benchmarks/train_additional_comparators.py`](../../../experiments/benchmarks/train_additional_comparators.py)

@@ -24,7 +24,7 @@ from torchvision.models import (
     resnet18, resnet50, vgg16,
 )
 
-from lin_mnp.paths import CACHE_ROOT
+from morap.paths import CACHE_ROOT
 
 
 RAW = CACHE_ROOT / "cscc/raw_patches"

@@ -37,7 +37,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from lin_mnp.benchmark.benchmark_external import (  # noqa: E402
+from morap.benchmark.benchmark_external import (  # noqa: E402
     PATCH_ROOT,
     SlideBundle,
     apply_target_transform,
@@ -45,7 +45,7 @@ from lin_mnp.benchmark.benchmark_external import (  # noqa: E402
     load_folds,
     load_slides,
 )
-from lin_mnp.paths import RESULTS_ROOT
+from morap.paths import environment_value, RESULTS_ROOT
 
 
 DEFAULT_OUTPUT = RESULTS_ROOT / "comparator_reruns"
@@ -432,7 +432,7 @@ def train_fold(args: argparse.Namespace) -> Path:
     )
     epochs = config.epochs if args.max_epochs is None else args.max_epochs
     fixed_final_epoch = (
-        os.environ.get("LIN_MNP_CHECKPOINT_MODE") == "fixed_final_epoch"
+        environment_value("MORAP_CHECKPOINT_MODE") == "fixed_final_epoch"
     )
 
     fold_output = (args.output / config.method_id / f"fold{fold.fold_id}").resolve()
@@ -578,13 +578,13 @@ def train_fold(args: argparse.Namespace) -> Path:
         "executed_epochs": epochs,
         "best_epoch_selected_by_validation_only": (
             best_epoch
-            if os.environ.get("LIN_MNP_CHECKPOINT_SELECTION_SCOPE")
+            if environment_value("MORAP_CHECKPOINT_SELECTION_SCOPE")
             == "inner_validation"
             else None
         ),
         "best_epoch_selected_by_outer_test": (
             best_epoch
-            if os.environ.get("LIN_MNP_CHECKPOINT_SELECTION_SCOPE")
+            if environment_value("MORAP_CHECKPOINT_SELECTION_SCOPE")
             == "outer_test"
             else None
         ),
@@ -592,11 +592,11 @@ def train_fold(args: argparse.Namespace) -> Path:
         "checkpoint_selection_scope": (
             "fixed_epoch_selected_on_inner_validation_then_refit_on_all_outer_train"
             if fixed_final_epoch
-            else os.environ.get(
-                "LIN_MNP_CHECKPOINT_SELECTION_SCOPE",
+            else environment_value(
+                "MORAP_CHECKPOINT_SELECTION_SCOPE",
                 (
                     "outer_test_HESpotEx_protocol"
-                    if os.environ.get("LIN_MNP_EXTERNAL_CONTRACT")
+                    if environment_value("MORAP_EXTERNAL_CONTRACT")
                     else "inner_validation"
                 ),
             )

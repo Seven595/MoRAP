@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Apply the frozen Lin-MNP propagation step to comparator predictions.
+"""Apply the frozen MoRAP propagation step to comparator predictions.
 
 The graph, neighbour count, inverse temperature and rank fusion are imported
-from Lin-MNP without modification.  For each cSCC patient-CV4 outer-test patient
+from MoRAP without modification.  For each cSCC patient-CV4 outer-test patient
 the graph is built once from the held-out patient's own frozen CTransPath
 context and local descriptors, then applied to (a) the pointwise ridge readout,
 reproducing the reported 0.421 -> 0.457, and (b) every comparator method with
@@ -16,7 +16,7 @@ predictions are standardized within section before the MNP step; this does not
 change the measured-expression target or refit the predictor.
 
 Usage:
-  python -m lin_mnp.analysis.evaluate_comparator_transfer
+  python -m morap.analysis.evaluate_comparator_transfer
 """
 
 from __future__ import annotations
@@ -31,9 +31,10 @@ import pandas as pd
 import torch
 from scipy.stats import wilcoxon
 
-from lin_mnp import model
-from lin_mnp.benchmark import benchmark_external as benchmark
-from lin_mnp.paths import ARCHIVE_ROOT, RESULTS_ROOT
+from morap import model
+from morap.benchmark import benchmark_external as benchmark
+from morap.compat import artifact_value
+from morap.paths import ARCHIVE_ROOT, RESULTS_ROOT
 
 FROZEN_RESULT_ROOT = RESULTS_ROOT / "cscc/folds"
 COMPARATOR_INDEX = (
@@ -160,20 +161,16 @@ def run_fold(fold, comparators, local_cache, slides):
         FROZEN_RESULT_ROOT / f"fold{fold_id}/outer_test_predictions.npz",
         allow_pickle=False,
     ) as payload:
-        key = next(
-            (name for name in ("lin_mnp", "prediction", "candidate") if name in payload.files),
-            None,
+        saved = np.asarray(
+            artifact_value(payload, "morap", "prediction", "candidate"), dtype=np.float32
         )
-        if key is None:
-            raise ValueError(f"no prediction matrix in {path}")
-        saved = np.asarray(payload[key], dtype=np.float32)
         saved_sections = [str(item) for item in payload["sections"]]
         saved_barcodes = [str(item) for item in payload["barcodes"]]
     if saved_sections != list(section_labels) or saved_barcodes != barcodes:
         raise ValueError("reproduction alignment failure")
     reproduction_error = float(np.abs(saved - adapted).max())
 
-    # Lin-MNP is fitted on section z-scored log1p raw counts, a per-section,
+    # MoRAP is fitted on section z-scored log1p raw counts, a per-section,
     # per-gene affine map of the official target, so within-section gene-wise
     # PCC against log1p raw counts is exact.
     official_targets = [
@@ -374,7 +371,7 @@ def main():
                 else f"{item['published_baseline_max_abs_error']:.2e}",
             ])
 
-    print(f"Lin-MNP prediction reproduction max abs error: "
+    print(f"MoRAP prediction reproduction max abs error: "
           f"{payload['reproduction_max_abs_error']:.3e}")
     print(f"methods dropped for section coverage: {dropped}")
     print(f"{'method':14s} {'base':>7s} {'+adapt':>7s} {'delta':>8s} "

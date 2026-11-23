@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 import sys
 
-from lin_mnp.paths import ARCHIVE_ROOT, CACHE_ROOT, DATA_ROOT, REPOSITORY_ROOT, RESULTS_ROOT
+from morap.paths import ARCHIVE_ROOT, CACHE_ROOT, DATA_ROOT, REPOSITORY_ROOT, RESULTS_ROOT
 
 PROJECT = REPOSITORY_ROOT
 CODE = ARCHIVE_ROOT / "component_analysis/code"

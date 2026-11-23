@@ -27,7 +27,7 @@ from typing import Any, Mapping, Sequence
 import numpy as np
 import torch
 
-from lin_mnp.paths import CACHE_ROOT, DATA_ROOT, REPOSITORY_ROOT, RESULTS_ROOT
+from morap.paths import CACHE_ROOT, DATA_ROOT, REPOSITORY_ROOT, RESULTS_ROOT
 
 PROJECT = REPOSITORY_ROOT
 COHORT = DATA_ROOT / "cscc/cohort"

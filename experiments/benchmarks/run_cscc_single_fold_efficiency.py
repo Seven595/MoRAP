@@ -18,7 +18,8 @@ import time
 from typing import Iterable
 
 
-from lin_mnp.paths import ARCHIVE_ROOT, REPOSITORY_ROOT, RESULTS_ROOT
+from morap.compat import canonical_method_id, compatible_environment
+from morap.paths import ARCHIVE_ROOT, REPOSITORY_ROOT, RESULTS_ROOT
 
 PROJECT = REPOSITORY_ROOT
 ARCHIVE = ARCHIVE_ROOT
@@ -32,7 +33,7 @@ COMMON_MISSING = ATTRIBUTION / "run_benchmark_common_missing_original_downstream
 
 
 DISPLAY = {
-    "lin_mnp": "Lin-MNP",
+    "morap": "MoRAP",
     "spahgc": "SpaHGC", "stflow": "STFlow", "hespotex": "HESpotEx",
     "he2gene": "HE2Gene", "stag": "STAG", "egnv1": "EGNv1",
     "egnv2": "EGNv2", "asgnn": "asGNN", "holotea": "HoloTea",
@@ -46,7 +47,7 @@ DISPLAY = {
 
 # Light jobs first so the append-only table remains useful during a long campaign.
 ORDER = (
-    "lin_mnp", "genecoder", "igidl", "hespotex", "holotea",
+    "morap", "genecoder", "igidl", "hespotex", "holotea",
     "omiclip", "bleep", "mclstexp", "asgnn", "egnv2", "spahgc",
     "deeppt", "gr2st", "deepspace", "heclip", "stag", "stflow",
     "histogene", "istar", "thitogene", "egnv1", "stnet", "he2gene",
@@ -54,7 +55,7 @@ ORDER = (
 )
 
 CACHE_SCOPE = {
-    "lin_mnp", "spahgc", "stflow", "hespotex", "stag", "egnv1",
+    "morap", "spahgc", "stflow", "hespotex", "stag", "egnv1",
     "egnv2", "asgnn", "holotea", "istar", "gr2st", "mclstexp", "bleep",
     "igidl", "deeppt", "omiclip",
 }
@@ -78,9 +79,9 @@ def command(method: str, output: Path) -> list[str]:
         "he2gene", "heclip", "tcgn", "stnet", "thitogene", "histogene",
         "hist2st", "deepspace", "genecoder",
     }
-    if method == "lin_mnp":
+    if method == "morap":
         return [
-            str(PYTHON), "-m", "lin_mnp.model", "train",
+            str(PYTHON), "-m", "morap.model", "train",
             "--fold", "0", "--device", "cuda:0", "--output-root",
             str(runs / method),
         ]
@@ -119,7 +120,7 @@ def command(method: str, output: Path) -> list[str]:
 
 def output_path(method: str, output: Path) -> Path:
     runs = output / "runs"
-    if method == "lin_mnp":
+    if method == "morap":
         return runs / method / "fold0"
     if method == "hespotex":
         return runs / "hespotex_fixed997" / "fold0"
@@ -170,7 +171,7 @@ def load_quality() -> dict[str, float]:
     with QUALITY.open(newline="", encoding="utf-8") as handle:
         for row in csv.DictReader(handle):
             if row["protocol"] == "benchmark_strict_patient_outer_cv4":
-                result[row["method_id"]] = float(row["pcc"])
+                result[canonical_method_id(row["method_id"])] = float(row["pcc"])
     return result
 
 
@@ -188,9 +189,9 @@ def write_csv(rows: Iterable[dict[str, object]], path: Path) -> None:
 
 def write_summary(rows: list[dict[str, object]], output: Path) -> None:
     completed_rows = [row for row in rows if row["status"] == "complete"]
-    lin_mnp_wall = next(
+    morap_wall = next(
         (float(row["task_wall_seconds"]) for row in completed_rows
-         if row["method_id"] == "lin_mnp"),
+         if row["method_id"] == "morap"),
         None,
     )
     lines = [
@@ -207,12 +208,12 @@ def write_summary(rows: list[dict[str, object]], output: Path) -> None:
         "",
         "## Results",
         "",
-        "| Method | Strict CV4 PCC¹ | Fold-0 wall time (s) | Relative to Lin-MNP | Peak GPU increment (MiB) | Peak CPU RSS (MiB) | Timing input |",
+        "| Method | Strict CV4 PCC¹ | Fold-0 wall time (s) | Relative to MoRAP | Peak GPU increment (MiB) | Peak CPU RSS (MiB) | Timing input |",
         "|---|---:|---:|---:|---:|---:|---|",
     ]
     for row in sorted(completed_rows, key=lambda value: float(value["task_wall_seconds"])):
         wall = float(row["task_wall_seconds"])
-        ratio = "—" if lin_mnp_wall is None else f"{wall / lin_mnp_wall:.1f}×"
+        ratio = "—" if morap_wall is None else f"{wall / morap_wall:.1f}×"
         gpu = row["gpu_peak_increment_mib"]
         rss = row["cpu_peak_rss_kib"]
         lines.append(
@@ -260,7 +261,7 @@ def main() -> None:
         "OMP_NUM_THREADS": "8", "MKL_NUM_THREADS": "8",
         "OPENBLAS_NUM_THREADS": "8", "NUMEXPR_NUM_THREADS": "8",
         "TOKENIZERS_PARALLELISM": "false", "HF_HUB_OFFLINE": "1",
-        "LIN_MNP_CHECKPOINT_SELECTION_SCOPE": "inner_validation",
+        "MORAP_CHECKPOINT_SELECTION_SCOPE": "inner_validation",
     })
     gpu_info = subprocess.run(
         [
@@ -322,7 +323,7 @@ def main() -> None:
                 raise RuntimeError("GNU time is required for efficiency measurements")
             process = subprocess.Popen(
                 [time_binary, "-v", "-o", str(time_path), *cmd],
-                cwd=PROJECT, env=environment, stdout=log,
+                cwd=PROJECT, env=compatible_environment(environment), stdout=log,
                 stderr=subprocess.STDOUT, text=True,
             )
             while process.poll() is None:

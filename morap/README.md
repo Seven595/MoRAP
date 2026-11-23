@@ -1,7 +1,7 @@
-# Lin-MNP implementation
+# MoRAP implementation
 
 [`model.py`](model.py) contains the reference patient-balanced Ridge readout
-and one morphology-neighbour propagation step. Its fixed parameters are:
+and one morphological neighbour propagation step. Its fixed parameters are:
 
 - Ridge regularization: `1e6`
 - Neighbours: 64 per other section
@@ -15,8 +15,8 @@ gene-wise PCC is equivalent to scoring against unstandardized `log1p(raw
 counts)`; MSE is reported in the standardized space.
 
 ```bash
-lin-mnp train --fold 0 --device cuda:0
-lin-mnp evaluate
+morap train --fold 0 --device cuda:0
+morap evaluate
 ```
 
 The scripts in [`analysis/`](analysis/) import this implementation directly;

@@ -24,8 +24,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from lin_mnp.benchmark.benchmark_external import PATCH_ROOT  # noqa: E402
-from lin_mnp.paths import CACHE_ROOT, MODEL_ROOT
+from morap.benchmark.benchmark_external import PATCH_ROOT  # noqa: E402
+from morap.paths import CACHE_ROOT, MODEL_ROOT
 
 
 DEFAULT_CHECKPOINT = MODEL_ROOT / "omiclip/checkpoint.pt"

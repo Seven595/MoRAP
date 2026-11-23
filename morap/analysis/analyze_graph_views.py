@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Analyze which descriptor view carries the propagation gain on cSCC.
 
-The readout uses the contextual descriptor alone, whereas the Lin-MNP graph fuses
+The readout uses the contextual descriptor alone, whereas the MoRAP graph fuses
 contextual and local ranks.  Part of the reported increment could therefore come
 from the local view entering the model for the first time rather than from
 relations between spots.  This script rebuilds the same graph from one view at a
@@ -9,7 +9,7 @@ time, holding the neighbour count, inverse temperature, gallery and single step
 fixed, and rescores the identical pointwise readout.
 
 Usage:
-  python -m lin_mnp.analysis.analyze_graph_views
+  python -m morap.analysis.analyze_graph_views
 """
 
 from __future__ import annotations
@@ -21,12 +21,12 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from lin_mnp import model
-from lin_mnp.analysis import evaluate_comparator_transfer as comparator_transfer
-from lin_mnp.benchmark import benchmark_external as benchmark
-from lin_mnp.paths import RESULTS_ROOT
+from morap import model
+from morap.analysis import evaluate_comparator_transfer as comparator_transfer
+from morap.benchmark import benchmark_external as benchmark
+from morap.paths import RESULTS_ROOT
 
-VIEWS = ("dual (Lin-MNP)", "contextual only", "local only")
+VIEWS = ("dual (MoRAP)", "contextual only", "local only")
 
 
 def main():

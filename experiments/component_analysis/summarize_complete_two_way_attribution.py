@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from lin_mnp.paths import ARCHIVE_ROOT, RESULTS_ROOT
+from morap.paths import ARCHIVE_ROOT, RESULTS_ROOT
 
 RESULT = RESULTS_ROOT / "component_analysis"
 STORAGE = ARCHIVE_ROOT / "component_analysis"

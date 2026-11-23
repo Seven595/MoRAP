@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reference implementation of Lin-MNP for the cSCC patient-CV4 benchmark.
+"""Reference implementation of MoRAP for the cSCC patient-CV4 benchmark.
 
 Fixed, not selected:
   raw 768-d CTransPath context, ridge α=1e6, one cross-section diffusion step,
@@ -17,9 +17,9 @@ gene-wise PCC is unchanged if its scoring reference is unstandardized log1p
 raw counts; squared-error metrics do depend on this target treatment.
 
 Usage:
-  python -m lin_mnp.model train --fold 0 --device cpu
-  python -m lin_mnp.model evaluate
-  python -m lin_mnp.model infer --checkpoint checkpoint.pt --sections S1 S2 --output pred.npz
+  python -m morap.model train --fold 0 --device cpu
+  python -m morap.model evaluate
+  python -m morap.model infer --checkpoint checkpoint.pt --sections S1 S2 --output pred.npz
 """
 
 from __future__ import annotations
@@ -35,7 +35,8 @@ from typing import Any, Mapping, Sequence
 import numpy as np
 import torch
 
-from lin_mnp.paths import CACHE_ROOT, DATA_ROOT, RESULTS_ROOT
+from morap.compat import artifact_value, canonical_method_id
+from morap.paths import CACHE_ROOT, DATA_ROOT, RESULTS_ROOT
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
@@ -48,8 +49,8 @@ INVERSE_TEMPERATURE = 10.0
 
 CONFIG = {
     "schema_version": 1,
-    "method_id": "lin_mnp",
-    "scientific_model_identity": "Lin-MNP",
+    "method_id": "morap",
+    "scientific_model_identity": "MoRAP",
     "folds": PACKAGE_ROOT / "configs/cscc_patient_cv4.json",
     "patch_cache": CACHE_ROOT / "cscc/raw_patches",
     "foundation_cache": CACHE_ROOT / "cscc/ctranspath_context",
@@ -137,16 +138,16 @@ def patient_equal_weights(
     patients = np.asarray(patients)
     patient_ids = tuple(str(value) for value in patient_ids)
     if not patient_ids or set(map(str, patients)) != set(patient_ids):
-        raise ValueError("Lin-MNP patient set mismatch")
+        raise ValueError("MoRAP patient set mismatch")
     count = len(patients)
     weight = np.zeros(count, dtype=np.float64)
     for patient in patient_ids:
         active = patients == patient
         if not np.any(active):
-            raise ValueError("Lin-MNP empty training patient")
+            raise ValueError("MoRAP empty training patient")
         weight[active] = count / (len(patient_ids) * int(active.sum()))
     if not np.isclose(weight.sum(), count):
-        raise ValueError("Lin-MNP patient weight normalization failure")
+        raise ValueError("MoRAP patient weight normalization failure")
     return weight
 
 
@@ -160,13 +161,13 @@ def fit_patient_balanced_ridge(
     feature = np.asarray(feature, dtype=np.float32)
     target = np.asarray(target, dtype=np.float32)
     if feature.ndim != 2 or feature.shape[1] != CONTEXT_DIM:
-        raise ValueError("Lin-MNP requires a raw 768-dimensional context feature")
+        raise ValueError("MoRAP requires a raw 768-dimensional context feature")
     if target.ndim != 2 or target.shape[0] != feature.shape[0]:
-        raise ValueError("Lin-MNP feature and target matrices must align by spot")
+        raise ValueError("MoRAP feature and target matrices must align by spot")
     if len(patients) != feature.shape[0]:
-        raise ValueError("Lin-MNP patient identifiers must align with the matrices")
+        raise ValueError("MoRAP patient identifiers must align with the matrices")
     if not np.isfinite(feature).all() or not np.isfinite(target).all():
-        raise ValueError("Lin-MNP fitting inputs must be finite")
+        raise ValueError("MoRAP fitting inputs must be finite")
     weight = patient_equal_weights(patients, patient_ids)
     total = float(weight.sum())
     feature_mean = np.sum(weight[:, None] * feature, axis=0) / total
@@ -198,9 +199,9 @@ def fit_patient_balanced_ridge(
 def predict_ridge(feature: np.ndarray, artifact: Mapping[str, Any]) -> np.ndarray:
     feature = np.asarray(feature, dtype=np.float32)
     if feature.ndim != 2 or feature.shape[1] != CONTEXT_DIM:
-        raise ValueError("Lin-MNP requires a raw 768-dimensional context feature")
+        raise ValueError("MoRAP requires a raw 768-dimensional context feature")
     if not np.isfinite(feature).all():
-        raise ValueError("Lin-MNP prediction features must be finite")
+        raise ValueError("MoRAP prediction features must be finite")
     x = ((feature - artifact["feature_mean"]) / artifact["feature_scale"])
     return (x @ artifact["weight"] + artifact["target_mean"]).astype(np.float32)
 
@@ -210,7 +211,7 @@ def top(similarity: np.ndarray, count: int) -> np.ndarray:
     if similarity.ndim != 2 or count <= 0:
         raise ValueError("neighbour selection requires a matrix and positive count")
     if similarity.shape[1] < count:
-        raise ValueError("Lin-MNP has insufficient cross-section neighbours")
+        raise ValueError("MoRAP has insufficient cross-section neighbours")
     partial = np.argpartition(-similarity, count - 1, axis=1)[:, :count]
     score = np.take_along_axis(similarity, partial, axis=1)
     order = np.argsort(-score, axis=1, kind="stable")
@@ -258,7 +259,7 @@ def variant_similarity(
 ) -> np.ndarray:
     """Return the descriptor similarity used by propagation-control analyses.
 
-    Inputs must already be row-normalized. ``borda`` is the released Lin-MNP
+    Inputs must already be row-normalized. ``borda`` is the released MoRAP
     rank fusion, ``score`` averages the two cosine similarities, and
     ``context`` uses the contextual view alone.
     """
@@ -280,7 +281,7 @@ def build_section_balanced_graph(
     sections = np.asarray(sections)
     section_ids = tuple(dict.fromkeys(str(value) for value in sections))
     if len(section_ids) < 2:
-        raise ValueError("Lin-MNP requires multiple sections")
+        raise ValueError("MoRAP requires multiple sections")
     context = normalize_rows(context)
     local = normalize_rows(local)
     total = NEIGHBORS_PER_OTHER_SECTION * (len(section_ids) - 1)
@@ -303,7 +304,7 @@ def build_section_balanced_graph(
             ) / float(len(section_ids) - 1)
             offset += NEIGHBORS_PER_OTHER_SECTION
     if not np.allclose(weight.sum(1), 1.0, atol=2e-6):
-        raise ValueError("Lin-MNP graph is not row stochastic")
+        raise ValueError("MoRAP graph is not row stochastic")
     return {"index": index, "weight": weight}
 
 
@@ -474,7 +475,7 @@ class InferenceSpotDataset:
             self.patients.extend(row["patient"] for row in local_rows)
             self.barcodes.extend(row["barcode"] for row in local_rows)
         if len(set(self.patients)) != 1:
-            raise ValueError("Lin-MNP inference sections must belong to one patient")
+            raise ValueError("MoRAP inference sections must belong to one patient")
         foundation_root = Path(config["foundation_cache"])
         foundation = json.loads((foundation_root / "manifest.json").read_text(encoding="utf-8"))
         if (
@@ -511,21 +512,21 @@ def load_local_cache(config: Mapping[str, Any]) -> np.ndarray:
         or manifest["foundation_model"] != "CTransPath"
         or int(manifest["source_local_view_native_pixels"]) != 224
     ):
-        raise ValueError("Lin-MNP local feature provenance failure")
+        raise ValueError("MoRAP local feature provenance failure")
     raw_manifest_path = Path(config["patch_cache"]) / "manifest.json"
     if (
         "raw_patch_cache_manifest_sha256" in manifest
         and manifest["raw_patch_cache_manifest_sha256"] != sha256(raw_manifest_path)
     ):
-        raise ValueError("Lin-MNP local feature/raw alignment failure")
+        raise ValueError("MoRAP local feature/raw alignment failure")
     path = manifest_path.parent / manifest["pooled_file"]
     if sha256(path) != manifest["pooled_sha256"]:
-        raise ValueError("Lin-MNP local feature checksum failure")
+        raise ValueError("MoRAP local feature checksum failure")
     values = np.load(path, mmap_mode="r")
     if tuple(values.shape) != tuple(manifest["pooled_shape"]):
-        raise ValueError("Lin-MNP local feature shape failure")
+        raise ValueError("MoRAP local feature shape failure")
     if values.ndim != 2 or values.shape[1] != CONTEXT_DIM:
-        raise ValueError("Lin-MNP local features must have shape [spots, 768]")
+        raise ValueError("MoRAP local features must have shape [spots, 768]")
     return values
 
 
@@ -551,7 +552,7 @@ def train_fold(
     fold = _fold(config, fold_id)
     output = Path(config["runtime_root"]) / f"fold{fold_id}"
     if output.exists():
-        raise SystemExit(f"refusing to overwrite Lin-MNP fold: {output}")
+        raise SystemExit(f"refusing to overwrite MoRAP fold: {output}")
     output.mkdir(parents=True)
     started = time.perf_counter()
     local_cache = load_local_cache(config)
@@ -605,7 +606,7 @@ def train_fold(
     np.savez_compressed(
         prediction_path,
         pointwise=pointwise.astype(np.float32),
-        lin_mnp=prediction.astype(np.float32),
+        morap=prediction.astype(np.float32),
         sections=np.asarray(inference_dataset.sections),
         barcodes=np.asarray(inference_dataset.barcodes),
         genes=np.asarray(train_dataset.genes),
@@ -628,7 +629,7 @@ def train_fold(
         "checkpoint_sha256": sha256(checkpoint_path),
         "prediction_file_sha256": sha256(prediction_path),
         "pointwise_array_sha256": array_sha256(pointwise),
-        "lin_mnp_array_sha256": array_sha256(prediction),
+        "morap_array_sha256": array_sha256(prediction),
         "input_manifest_sha256": {
             "folds": sha256(config["folds"]),
             "raw_patches": sha256(Path(config["patch_cache"]) / "manifest.json"),
@@ -711,7 +712,7 @@ def evaluate_folds(
                 raise ValueError(f"gene mismatch: {prediction_path}")
             predictions = {
                 "linear_readout": np.asarray(archive["pointwise"], dtype=np.float32),
-                "lin_mnp": np.asarray(archive["lin_mnp"], dtype=np.float32),
+                "morap": np.asarray(artifact_value(archive, "morap"), dtype=np.float32),
             }
         for method, prediction in predictions.items():
             if prediction.shape != target.target_matrix.shape:
@@ -724,10 +725,8 @@ def evaluate_folds(
             "pointwise_array_sha256"
         ]:
             raise ValueError(f"pointwise array checksum failure: {prediction_path}")
-        if array_sha256(predictions["lin_mnp"]) != metadata[
-            "lin_mnp_array_sha256"
-        ]:
-            raise ValueError(f"Lin-MNP array checksum failure: {prediction_path}")
+        if array_sha256(predictions["morap"]) != artifact_value(metadata, "morap_array_sha256"):
+            raise ValueError(f"MoRAP array checksum failure: {prediction_path}")
         for method, prediction in predictions.items():
             rows.append(
                 {
@@ -744,14 +743,14 @@ def evaluate_folds(
             )
 
     summary = {}
-    for method in ("linear_readout", "lin_mnp"):
+    for method in ("linear_readout", "morap"):
         selected = [row for row in rows if row["method"] == method]
         summary[method] = {
             "mean_pcc": float(np.mean([row["pcc"] for row in selected])),
             "mean_mse": float(np.mean([row["mse"] for row in selected])),
         }
-    summary["lin_mnp"]["mean_pcc_change"] = (
-        summary["lin_mnp"]["mean_pcc"] - summary["linear_readout"]["mean_pcc"]
+    summary["morap"]["mean_pcc_change"] = (
+        summary["morap"]["mean_pcc"] - summary["linear_readout"]["mean_pcc"]
     )
     result = {
         "schema_version": 1,
@@ -775,8 +774,10 @@ def infer(checkpoint_path, sections, output_path, config=None):
     if output_path.exists():
         raise SystemExit(f"refusing to overwrite inference output: {output_path}")
     checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
-    if checkpoint["scientific_model_identity"] != config["scientific_model_identity"]:
-        raise ValueError("Lin-MNP inference checkpoint identity failure")
+    if canonical_method_id(checkpoint["scientific_model_identity"]) != canonical_method_id(
+        config["scientific_model_identity"]
+    ):
+        raise ValueError("MoRAP inference checkpoint identity failure")
     local_cache = load_local_cache(config)
     dataset = InferenceSpotDataset(config, list(sections))
     index = np.asarray(dataset.patch_indices, dtype=np.int64)
@@ -788,7 +789,7 @@ def infer(checkpoint_path, sections, output_path, config=None):
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(
-        output_path, lin_mnp=prediction.astype(np.float32),
+        output_path, morap=prediction.astype(np.float32),
         sections=np.asarray(dataset.sections), barcodes=np.asarray(dataset.barcodes),
         genes=np.asarray(checkpoint["genes"]),
     )
@@ -799,7 +800,7 @@ def infer(checkpoint_path, sections, output_path, config=None):
         "spot_count": len(prediction),
         "gene_count": int(prediction.shape[1]),
         "prediction_space": "within_section_gene_zscore_log1p_raw_counts",
-        "lin_mnp_array_sha256": array_sha256(prediction),
+        "morap_array_sha256": array_sha256(prediction),
         "expression_label_files_opened": False,
     }
     output_path.with_suffix(output_path.suffix + ".json").write_text(
@@ -810,7 +811,7 @@ def infer(checkpoint_path, sections, output_path, config=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Train or run Lin-MNP")
+    parser = argparse.ArgumentParser(description="Train or run MoRAP")
     sub = parser.add_subparsers(dest="command", required=True)
     train_parser = sub.add_parser("train")
     train_parser.add_argument("--fold", required=True, type=int, choices=range(4))
@@ -820,7 +821,7 @@ def main():
     train_parser.add_argument(
         "--output-root",
         type=Path,
-        help="Override LIN_MNP_RESULTS_ROOT/cscc/folds for this run.",
+        help="Override MORAP_RESULTS_ROOT/cscc/folds for this run.",
     )
     evaluate_parser = sub.add_parser(
         "evaluate", help="Verify and evaluate all four outer-test folds."

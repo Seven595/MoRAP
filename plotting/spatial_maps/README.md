@@ -1,7 +1,7 @@
 # Spatial-expression maps
 
 `build_cscc_spatial_expression_overviews.py` rebuilds the cSCC spatial maps
-from Lin-MNP predictions and archived per-section metrics.
+from MoRAP predictions and archived per-section metrics.
 
 `build_hest_stimage_spatial_expression_overviews.py` applies the same visual
 design to the HEST and STImage 50-gene benchmarks, using one deterministic

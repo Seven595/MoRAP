@@ -16,7 +16,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from lin_mnp.paths import ARCHIVE_ROOT, RESULTS_ROOT
+from morap.paths import ARCHIVE_ROOT, RESULTS_ROOT
 
 SOURCE = (
     ARCHIVE_ROOT

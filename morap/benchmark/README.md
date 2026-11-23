@@ -2,7 +2,7 @@
 
 These four modules are **not a prediction method**. They only define the
 patient folds, gene panel, patch cache and metrics used to put published
-comparators on the same contract as Lin-MNP.
+comparators on the same contract as MoRAP.
 
 They contain no trainable prediction model and do not import project history or
 development-only implementations.
@@ -21,5 +21,5 @@ section-standardized targets. See the expression-target table in
 | `metrics.py` | Spot-level PCC / MI / SSIM / AUC |
 | `evaluator.py` | Patient-equal aggregation |
 
-Adapters import these helpers from `lin_mnp.benchmark`. Install the repository
+Adapters import these helpers from `morap.benchmark`. Install the repository
 in editable mode before launching an adapter.

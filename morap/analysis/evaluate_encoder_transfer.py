@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Evaluate Lin-MNP across ImageNet and pathology encoders.
+"""Evaluate MoRAP across ImageNet and pathology encoders.
 
-Each encoder is evaluated as patient-equal ridge (α=1e6) and as Lin-MNP
+Each encoder is evaluated as patient-equal ridge (α=1e6) and as MoRAP
 (same ridge plus one Borda cross-section step).  Same cSCC RGB224 field.
 """
 
@@ -14,8 +14,8 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from lin_mnp import model
-from lin_mnp.paths import CACHE_ROOT, RESULTS_ROOT
+from morap import model
+from morap.paths import CACHE_ROOT, RESULTS_ROOT
 
 
 RESULT = RESULTS_ROOT / "encoder_transfer"
@@ -155,7 +155,7 @@ def evaluate_encoder(spec, device):
                 "pcc": model.section_pcc(val.target_matrix, ridge, val.sections),
                 "mse": model.section_mse(val.target_matrix, ridge, val.sections),
             },
-            "lin_mnp": {
+            "morap": {
                 "pcc": model.section_pcc(val.target_matrix, full, val.sections),
                 "mse": model.section_mse(val.target_matrix, full, val.sections),
             },
@@ -175,20 +175,20 @@ def main():
     for name, spec in ENCODERS.items():
         records = evaluate_encoder(spec, device)
         ridge = aggregate(records, "ridge")
-        full = aggregate(records, "lin_mnp")
+        full = aggregate(records, "morap")
         encoders[name] = {
             "family": spec["family"],
             "dim": spec["dim"],
             "folds": records,
             "ridge": ridge,
-            "lin_mnp": full,
+            "morap": full,
             "delta_pcc": full["patient_equal_pcc"] - ridge["patient_equal_pcc"],
             "delta_mse": full["patient_equal_mse"] - ridge["patient_equal_mse"],
         }
         print(json.dumps({
             "encoder": name,
             "ridge": ridge["patient_equal_pcc"],
-            "lin_mnp": full["patient_equal_pcc"],
+            "morap": full["patient_equal_pcc"],
             "delta": encoders[name]["delta_pcc"],
         }), flush=True)
     summary = {
@@ -197,7 +197,7 @@ def main():
         "experiment_id": "encoder_transfer_cscc",
         "protocol": (
             "cSCC development validation; P2 folds averaged first, then equal P2/P5/P10; "
-            "frozen α=1e6 raw ridge; Lin-MNP adds one Borda cross-section step"
+            "frozen α=1e6 raw ridge; MoRAP adds one Borda cross-section step"
         ),
         "outer_test_labels_accessed": False,
         "encoders": encoders,
@@ -210,14 +210,14 @@ def main():
                 "encoder": name,
                 "family": row["family"],
                 "ridge_pcc": row["ridge"]["patient_equal_pcc"],
-                "lin_mnp_pcc": row["lin_mnp"]["patient_equal_pcc"],
+                "morap_pcc": row["morap"]["patient_equal_pcc"],
                 "delta_pcc": row["delta_pcc"],
                 "ridge_mse": row["ridge"]["patient_equal_mse"],
-                "lin_mnp_mse": row["lin_mnp"]["patient_equal_mse"],
+                "morap_mse": row["morap"]["patient_equal_mse"],
                 "patients": {
                     patient: {
                         "ridge": row["ridge"]["patients"][patient]["pcc"],
-                        "lin_mnp": row["lin_mnp"]["patients"][patient]["pcc"],
+                        "morap": row["morap"]["patients"][patient]["pcc"],
                     }
                     for patient in ("P2", "P5", "P10")
                 },

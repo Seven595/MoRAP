@@ -8,7 +8,7 @@ from pathlib import Path
 
 from PIL import Image, ImageChops
 
-from lin_mnp.paths import ARCHIVE_ROOT, RESULTS_ROOT
+from morap.paths import ARCHIVE_ROOT, RESULTS_ROOT
 
 PANEL_DIR = ARCHIVE_ROOT / "figures/benchmark/panels"
 OUTPUT = RESULTS_ROOT / "figures/supplementary_benchmark_endpoints.png"

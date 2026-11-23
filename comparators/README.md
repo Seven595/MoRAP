@@ -7,8 +7,8 @@ machine-specific path defaults were made portable without changing model
 equations; runtime adaptations made by an adapter are recorded in its output
 metadata.
 
-Install Lin-MNP in editable mode before launching an adapter so
-`lin_mnp.benchmark` and the shared path policy are importable. Comparator
+Install MoRAP in editable mode before launching an adapter so
+`morap.benchmark` and the shared path policy are importable. Comparator
 environments remain method-specific and are not installed by the base package.
 
 HoloTea has no usable upstream package; the implementation used here is in

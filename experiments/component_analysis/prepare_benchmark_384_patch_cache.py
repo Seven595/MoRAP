@@ -22,7 +22,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from lin_mnp.paths import CACHE_ROOT, DATA_ROOT
+from morap.paths import CACHE_ROOT, DATA_ROOT
 
 DERIVED = DATA_ROOT / "cscc/derived"
 SOURCE_MANIFEST = DERIVED / "shared_raw_patches/benchmark_224_v1/manifest.json"

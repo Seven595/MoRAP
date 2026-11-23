@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Within-section adapter applied to the STImage Lin-MNP runs.
+"""Within-section adapter applied to the STImage MoRAP runs.
 
 STImage supplies independent cancer slides with no serial-section patient
 groups, so the released configuration switches the spatial operator off
 outright (`"spatial_transport": {"enabled": false, "depth": 0}`) and the
-published `Lin-MNP_full` is exactly the Ridge spot prediction.
+published `MoRAP_full` is exactly the Ridge spot prediction.
 
 The cSCC neighbour control showed that a within-section morphology graph retains
 the propagation gain while staying inside one slide. That operator is applied
@@ -25,13 +25,14 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from lin_mnp import model
-from lin_mnp.within_section import (
+from morap import model
+from morap.within_section import (
     apply_grid,
     mean_gene_pcc_and_mse,
     radial_pool_weights,
 )
-from lin_mnp.paths import ARCHIVE_ROOT, CACHE_ROOT, RESULTS_ROOT
+from morap.compat import artifact_value
+from morap.paths import ARCHIVE_ROOT, CACHE_ROOT, RESULTS_ROOT
 
 ARCHIVE = ARCHIVE_ROOT
 ARCHIVED_RESULTS = ARCHIVE / "legacy/development"
@@ -99,7 +100,7 @@ def run(args):
     configs = CONFIGS if spec["views"] == "dual" else CONTEXT_CONFIGS
     weights = radial_pool_weights()
     index = slide_index(spec)
-    arms = ["published_lin_mnp"] + [f"{n}_k{k}" for n in configs for k in K_GRID]
+    arms = ["published_morap"] + [f"{n}_k{k}" for n in configs for k in K_GRID]
 
     rows = []
     for tissue in TISSUES:
@@ -107,7 +108,7 @@ def run(args):
             seed = path.parent.name
             with np.load(path, allow_pickle=False) as archive:
                 target = archive["target"].astype(np.float32)
-                ridge = archive["lin_mnp"].astype(np.float32)
+                ridge = artifact_value(archive, "morap").astype(np.float32)
                 sections = archive["sections"].astype(str)
                 barcodes = archive["barcodes"].astype(str)
 
@@ -124,7 +125,7 @@ def run(args):
                     for k, value in produced.items():
                         adapted[f"{name}_k{k}"][mask] = value
 
-            scored = {"published_lin_mnp": ridge} | adapted
+            scored = {"published_morap": ridge} | adapted
             for arm, prediction in scored.items():
                 rows.append({
                     "encoder": args.encoder, "tissue": tissue, "seed": seed,
@@ -138,7 +139,7 @@ def run(args):
     detail = pd.DataFrame(rows)
     per_tissue = detail.groupby(["arm", "tissue"], as_index=False)[["pcc", "mse"]].mean()
     summary = per_tissue.groupby("arm", as_index=False)[["pcc", "mse"]].mean()
-    baseline = float(summary.loc[summary.arm == "published_lin_mnp", "pcc"].iloc[0])
+    baseline = float(summary.loc[summary.arm == "published_morap", "pcc"].iloc[0])
     summary["delta_vs_published"] = summary.pcc - baseline
 
     out = args.output / args.encoder
@@ -154,7 +155,7 @@ def run(args):
         "aggregation": "seed mean within tissue, then equal 7-tissue mean",
         "configs": configs, "k_grid": list(K_GRID), "declared_k": DECLARED_K,
         "inverse_temperature": model.INVERSE_TEMPERATURE,
-        "published_lin_mnp_pcc": baseline,
+        "published_morap_pcc": baseline,
         "published_pcc": spec["published"],
         "reproduction_abs_difference": abs(baseline - spec["published"]),
     }, indent=2) + "\n")
@@ -162,7 +163,7 @@ def run(args):
     print()
     print(summary.set_index("arm").loc[arms].to_string())
     print()
-    print(f"published_lin_mnp {baseline:.6f} vs reported {spec['published']:.6f} "
+    print(f"published_morap {baseline:.6f} vs reported {spec['published']:.6f} "
           f"|diff| {abs(baseline - spec['published']):.6f}")
 
 

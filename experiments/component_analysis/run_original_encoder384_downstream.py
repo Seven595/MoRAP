@@ -13,7 +13,7 @@ import sys
 
 import numpy as np
 
-from lin_mnp.paths import ARCHIVE_ROOT, CACHE_ROOT, REPOSITORY_ROOT, RESULTS_ROOT
+from morap.paths import ARCHIVE_ROOT, CACHE_ROOT, REPOSITORY_ROOT, RESULTS_ROOT
 
 PROJECT = REPOSITORY_ROOT
 SCRIPTS = PROJECT / "comparators/adapters"
@@ -90,12 +90,12 @@ def repair(result: Path, method: str) -> None:
 
 def run_standard(args) -> Path:
     method, fold = args.method, args.fold
-    os.environ["LIN_MNP_CHECKPOINT_SELECTION_SCOPE"] = "inner_validation"
+    os.environ["MORAP_CHECKPOINT_SELECTION_SCOPE"] = "inner_validation"
     if method in {"gr2st", "asgnn"}:
         module = load(f"orig384_additional_{method}_{fold}", SCRIPTS / "train_additional_comparators_fold.py")
         force_common_target(module)
         if method == "gr2st":
-            os.environ["LIN_MNP_PHIKON_CROP_SIZE"] = "384"
+            os.environ["MORAP_PHIKON_CROP_SIZE"] = "384"
         else:
             module.RESNET_ROOT = FEATURES / "deeppt"
         namespace = argparse.Namespace(

@@ -19,18 +19,18 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from lin_mnp.paths import CACHE_ROOT, DATA_ROOT
+from morap.paths import environment_value, CACHE_ROOT, DATA_ROOT
 
 COHORT_ROOT = DATA_ROOT / "cscc/cohort"
 DERIVED_ROOT = DATA_ROOT / "cscc/derived"
 FOLDS_PATH = COHORT_ROOT / "splits/heto_official_cv4/folds.json"
 PREPARED_ROOT = DERIVED_ROOT / "heto_official_cv4/fold0/locked997/prepared/slides"
 LABEL_ROOT = DATA_ROOT / "cscc/labels"
-EXTERNAL_CONTRACT_ENV = "LIN_MNP_EXTERNAL_CONTRACT"
+EXTERNAL_CONTRACT_ENV = "MORAP_EXTERNAL_CONTRACT"
 
 
 def _external_contract() -> dict[str, object] | None:
-    value = os.environ.get(EXTERNAL_CONTRACT_ENV)
+    value = environment_value(EXTERNAL_CONTRACT_ENV)
     if not value:
         return None
     path = Path(value).resolve()

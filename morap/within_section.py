@@ -1,7 +1,7 @@
 """Reusable within-section morphology propagation utilities.
 
 These functions support the HEST, STImage and HESpotEx transfer analyses. They
-share Lin-MNP's descriptor fusion and temperature but exclude the query spot
+share MoRAP's descriptor fusion and temperature but exclude the query spot
 from a gallery restricted to one section.
 """
 
@@ -11,7 +11,7 @@ from collections.abc import Iterable
 
 import numpy as np
 
-from lin_mnp import model
+from morap import model
 
 
 def radial_pool_weights(

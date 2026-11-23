@@ -5,5 +5,5 @@
 *.jpeg binary
 *.png binary
 
-# Keep GitHub language statistics focused on Lin-MNP rather than vendored code.
+# Keep GitHub language statistics focused on MoRAP rather than vendored code.
 comparators/methods/** linguist-vendored

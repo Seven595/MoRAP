@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Analyze diffusion depth and residual structure on cSCC.
 
-(a) Iterated propagation.  The one-step rule of Lin-MNP is applied repeatedly to
+(a) Iterated propagation.  The one-step rule of MoRAP is applied repeatedly to
     the same graph, for the ridge readout and for every comparator with saved
     spot-level predictions, so the reported single step can be compared with two
     steps and with the fixed point.
@@ -12,11 +12,11 @@
     the propagation gain where pointwise accuracy does not.
 
 Graph, neighbour count, inverse temperature and rank fusion are imported from
-Lin-MNP without modification, and every method is scored in its own native target
+MoRAP without modification, and every method is scored in its own native target
 space, exactly as in the comparator-transfer analysis.
 
 Usage:
-  python -m lin_mnp.analysis.analyze_diffusion_depth
+  python -m morap.analysis.analyze_diffusion_depth
 """
 
 from __future__ import annotations
@@ -30,10 +30,10 @@ import numpy as np
 import torch
 from scipy.stats import spearmanr
 
-from lin_mnp import model
-from lin_mnp.analysis import evaluate_comparator_transfer as comparator_transfer
-from lin_mnp.benchmark import benchmark_external as benchmark
-from lin_mnp.paths import RESULTS_ROOT
+from morap import model
+from morap.analysis import evaluate_comparator_transfer as comparator_transfer
+from morap.benchmark import benchmark_external as benchmark
+from morap.paths import RESULTS_ROOT
 
 FROZEN_RESULT_ROOT = comparator_transfer.FROZEN_RESULT_ROOT
 READOUT_LABEL = comparator_transfer.READOUT_LABEL
@@ -197,7 +197,7 @@ def main():
 
     payload = {
         "protocol": "cSCC strict patient CV4, outer test",
-        "operator": "Lin-MNP graph, unchanged; propagation applied repeatedly",
+        "operator": "MoRAP graph, unchanged; propagation applied repeatedly",
         "steps_reported": list(STEPS),
         "n_predictors": len(rows),
         "delta_vs_base_accuracy": corr("base"),

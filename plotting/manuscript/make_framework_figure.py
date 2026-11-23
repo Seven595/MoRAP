@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Build the Lin-MNP overview figure from the cSCC P2 serial sections.
+"""Build the MoRAP overview figure from the cSCC P2 serial sections.
 
 The morphology panel shows neighbours on a second section of the same patient,
-selected by the Lin-MNP dual-view rank fusion, not by spatial proximity.
+selected by the MoRAP dual-view rank fusion, not by spatial proximity.
 """
 
 from __future__ import annotations
@@ -20,8 +20,8 @@ from matplotlib.patches import FancyBboxPatch, FancyArrowPatch, Polygon, Rectang
 import numpy as np
 from PIL import Image
 
-from lin_mnp import model
-from lin_mnp.paths import DATA_ROOT, RESULTS_ROOT
+from morap import model
+from morap.paths import DATA_ROOT, RESULTS_ROOT
 
 Image.MAX_IMAGE_PIXELS = None
 
@@ -483,7 +483,7 @@ def main():
     ax_rank.text(0.50, 0.12, "equal Borda fusion", transform=ax_rank.transAxes, ha="center", fontsize=6.2, color=INK)
 
     # --- Real serial H&E sections, stacked in isometric view ---
-    title(ax_mnp, "Morphology-neighbour propagation")
+    title(ax_mnp, "Morphological neighbour propagation")
     stack_ax = ax_mnp.inset_axes([0.03, 0.08, 0.94, 0.80])
     stack_ax.set_axis_off()
     stack_ax.set_aspect("equal")

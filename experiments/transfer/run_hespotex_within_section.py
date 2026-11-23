@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Within-section adapter applied to the HESPotEx-aligned Lin-MNP runs.
+"""Within-section adapter applied to the HESPotEx-aligned MoRAP runs.
 
-The released HESPotEx runs report Lin-MNP with the spatial adapter
+The released HESPotEx runs report MoRAP with the spatial adapter
 switched off: section-LOSO holds out exactly one section, the released operator
 needs at least two sections per patient, so its metadata records
 ``test_graph = "one section per fold, therefore identity A=I"``.  Those numbers
@@ -36,15 +36,16 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from lin_mnp import model
-from lin_mnp.within_section import apply as apply_within_section
-from lin_mnp.benchmark import hespotex_metrics
-from lin_mnp.benchmark import metrics as benchmark_metrics
-from lin_mnp.paths import ARCHIVE_ROOT, DATA_ROOT, RESULTS_ROOT
+from morap import model
+from morap.within_section import apply as apply_within_section
+from morap.benchmark import hespotex_metrics
+from morap.benchmark import metrics as benchmark_metrics
+from morap.compat import artifact_path
+from morap.paths import ARCHIVE_ROOT, DATA_ROOT, RESULTS_ROOT
 
 ARCHIVE = ARCHIVE_ROOT
 DATA = DATA_ROOT
-HESPOTEX_ROOT = ARCHIVE / "hespotex/lin_mnp"
+HESPOTEX_ROOT = artifact_path(ARCHIVE / "hespotex/morap")
 CONTRACT_ROOT = ARCHIVE / "hespotex/contracts"
 
 OUTPUT = RESULTS_ROOT / "transfer/hespotex"
