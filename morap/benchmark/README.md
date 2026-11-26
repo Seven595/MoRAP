@@ -1,25 +1,21 @@
-# Benchmark evaluation contract
+# Benchmark evaluation utilities
 
-These four modules are **not a prediction method**. They only define the
-patient folds, gene panel, patch cache and metrics used to put published
-comparators on the same contract as MoRAP.
-
-They contain no trainable prediction model and do not import project history or
-development-only implementations.
-
-Shared gene identities and folds do not imply a single training or scoring
-target for every analysis. Attribution uses a common log1p raw-count PCC
-reference; complete cSCC pipeline scoring retains method-specific targets,
-and each MNP pair retains its original target. The primary cSCC readout fits
-section-standardized targets. See the expression-target table in
-[`REPRODUCTION.md`](../../REPRODUCTION.md#expression-targets-and-scoring).
+These modules define data loading, target transformations, prediction
+alignment, and metric aggregation used by the comparator adapters.
 
 | File | Role |
 |---|---|
-| `benchmark_external.py` | Folds, slides, 997-gene panel, patch cache, target transforms |
-| `hespotex_metrics.py` | HESPotEx gene-wise metrics |
-| `metrics.py` | Spot-level PCC / MI / SSIM / AUC |
-| `evaluator.py` | Patient-equal aggregation |
+| [`benchmark_external.py`](benchmark_external.py) | cSCC folds, slides, 997-gene panel, patch caches, target transforms, and external dataset configurations |
+| [`hespotex_metrics.py`](hespotex_metrics.py) | HESpotEx gene-wise metrics |
+| [`metrics.py`](metrics.py) | Spatial expression metrics, including PCC, MI, SSIM, and AUC |
+| [`evaluator.py`](evaluator.py) | Section/gene metrics, patient-level aggregation, and patient-bootstrap intervals |
 
-Adapters import these helpers from `morap.benchmark`. Install the repository
-in editable mode before launching an adapter.
+Training targets and scoring references are specified separately for each
+analysis. The matched-descriptor comparisons use a common log-transformed
+raw-count reference. Complete cSCC pipeline comparisons retain method-specific
+target transformations. Paired MNP evaluations keep each predictor's scoring
+target fixed before and after propagation. See
+[REPRODUCTION.md](../../REPRODUCTION.md#expression-targets-and-scoring).
+
+Install MoRAP before launching an adapter so that `morap.benchmark` is
+available in its Python environment.

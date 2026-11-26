@@ -1,11 +1,14 @@
-# Manuscript experiments
+# Experiments
 
 | Directory | Purpose |
 |---|---|
-| `component_analysis/` | Common-contract encoder, ROI and prediction-head analysis |
-| `neighbor_controls/` | Coordinate and random-neighbour controls |
-| `transfer/` | MoRAP transfer to HEST, STImage and HER2+ cohorts |
-| `benchmarks/` | HEST, STImage, HESpotEx and cSCC benchmark workflows |
+| [`component_analysis/`](component_analysis/) | Comparison of encoders, image fields of view, and prediction modules under specified evaluation protocols |
+| [`neighbor_controls/`](neighbor_controls/) | Morphological, spatial, and random-neighbour propagation controls |
+| [`transfer/`](transfer/) | Within-section MNP applied to saved predictions for HEST, STImage, and HESpotEx-aligned cSCC and HER2+ datasets |
+| [`benchmarks/`](benchmarks/) | Comparator training and evaluation workflows |
 
-These directories contain scientific reproduction workflows. Development-only
-conditioning and optimizer parity checks are intentionally omitted.
+Run scripts from the repository root in an environment with the required
+method dependencies. Data, descriptor caches, and saved prediction files are
+configured through `MORAP_*` paths. Some workflows also load analysis helpers
+from `MORAP_ARCHIVE_ROOT`. Consult
+[REPRODUCTION.md](../REPRODUCTION.md) for commands and required inputs.

@@ -1,7 +1,7 @@
 # Figures
 
 - `manuscript/` — framework, attribution, and benchmark-composite builders.
-- `spatial_maps/` — spot-level cSCC, HEST, and STImage maps.
+- `spatial_maps/` — spot-level cSCC, HER2+, HEST, and STImage maps.
 
 All builders read roots from `morap.paths` and write below
 `$MORAP_RESULTS_ROOT/figures/` by default. See

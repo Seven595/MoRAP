@@ -1,25 +1,32 @@
 # MoRAP
 
+**Decoupling expression readout from morphological aggregation for histology-based spatial gene expression prediction**
+
 MoRAP (morphology-guided readout and propagation) predicts spatial gene
-expression from H&E images with a
-patient-balanced linear readout followed by one training-free morphological
-neighbour propagation (MNP) step. The graph uses frozen contextual and local
-image descriptors; no expression measurement from a predicted section is used
-to construct the graph.
+expression from histology images in two stages:
 
-This repository contains the reference cSCC implementation, manuscript
-analyses, figure builders, and protocol adapters used to compare published
-methods under common evaluation contracts.
+1. **Expression readout.** A unit-balanced linear model maps frozen pathology
+   descriptors to spot-level expression predictions.
+2. **Morphological neighbour propagation (MNP).** A graph constructed from
+   contextual and local descriptor similarities aggregates these predictions
+   without refitting the readout. Neighbours are selected by normalised Borda
+   rank fusion, and their predictions are combined using softmax weights.
 
-Manuscript: **MoRAP: Decoupling expression readout from morphological aggregation
-for histology-based spatial gene expression prediction**.
+For a matrix of spot-level predictions $\hat{Y}_{\mathrm{point}}$, propagation
+is $\hat{Y}_{\mathrm{MNP}} = A\hat{Y}_{\mathrm{point}}$, where $A$ is a
+row-stochastic matrix computed from image descriptors. Graph construction and
+propagation do not require expression measurements from the predicted sections.
 
-Repository: [Seven595/MoRAP](https://github.com/Seven595/MoRAP).
+This repository provides the reference cSCC implementation, within-section
+propagation operators, and scripts for benchmark evaluation and figure
+preparation. The available workflows and their data requirements are described
+in [REPRODUCTION.md](REPRODUCTION.md).
 
-## Quick start
+## Installation
 
-Python 3.10 or newer is required. CUDA is optional for the reference method;
-CPU execution is sufficient for the synthetic example and tests.
+Python 3.10 or newer is required. The core package depends on NumPy and PyTorch.
+CPU execution is supported; a compatible CUDA-enabled PyTorch installation can
+be used for the ridge solve.
 
 ```bash
 git clone https://github.com/Seven595/MoRAP.git
@@ -28,10 +35,31 @@ python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e .
+```
+
+Install additional dependencies for analyses or figures as needed:
+
+| Workflow | Installation |
+|---|---|
+| Core model and tests | `python -m pip install -e .` |
+| Benchmark analyses | `python -m pip install -e ".[analysis]"` |
+| Analyses and figure generation | `python -m pip install -e ".[analysis,figures]"` |
+
+Comparator methods require their own environments and pretrained weights. See
+[comparators/README.md](comparators/README.md) for their implementations and
+[THIRD_PARTY.md](THIRD_PARTY.md) for source and license information.
+
+## Minimal example
+
+The synthetic example runs the ridge readout and cross-section propagation on
+deterministic random descriptors. It requires no external data and checks the
+numerical workflow; its output is not a biological performance evaluation.
+
+```bash
 python examples/minimal.py
 ```
 
-The example is deterministic, requires no downloaded data, and should report:
+Expected output:
 
 ```text
 pointwise shape: (195, 5)
@@ -39,103 +67,52 @@ MoRAP shape:     (195, 5)
 finite output:   True
 ```
 
-Run the test suite with:
-
-```bash
-python -m unittest discover -s tests -v
-```
-
-## Upgrading from the previous name
-
-The project was previously named Lin-MNP. Reinstall with
-`python -m pip install -e .` after updating your checkout. The current package
-and command are both `morap`; update Python imports and shell scripts accordingly.
-
-| Interface | Current name | Historical name |
-|---|---|---|
-| Python package | `morap` | `lin_mnp` |
-| CLI | `morap` | `lin-mnp` |
-| Environment prefix | `MORAP_` | `LIN_MNP_` |
-| Prediction array / method ID | `morap` | `lin_mnp` |
-| Checkpoint model identity | `MoRAP` | `Lin-MNP` |
-
-New artifacts use the current names. Readers accept historical prediction keys,
-checksum fields, checkpoint identities, and method directories in the companion
-bundle without modifying the original files or their hashes. Historical
-environment variables remain a fallback; explicitly set `MORAP_*` values take
-precedence. Old package imports and the old CLI are not installed as aliases.
-MNP still denotes **morphological neighbour propagation**, the propagation
-component of MoRAP. Earlier archived comparator branches such as PACE-ST retain
-their own identities.
-
-## Installation profiles
-
-The base package contains only the dependencies needed by the reference
-numerical core. Install optional dependencies for the workflows you intend to
-run:
-
-| Use case | Command |
-|---|---|
-| Reference model, inference, tests | `python -m pip install -e .` |
-| Analyses and benchmark contracts | `python -m pip install -e ".[analysis]"` |
-| Manuscript figures | `python -m pip install -e ".[analysis,figures]"` |
-| Core package via requirements file | `python -m pip install -r requirements.txt` |
-
-For a CUDA run, install the PyTorch build matching the local driver before
-installing MoRAP. Comparator dependencies are deliberately not part of the
-base environment because published methods require mutually incompatible
-versions. Use the environment documented by each source under
-`comparators/methods/`; the HESpotEx snapshot includes a reduced, portable
-requirements file.
-
 ## Data and path configuration
 
-No machine-specific absolute path is embedded in the code. All data, cache,
-model, artifact, and result roots are controlled by environment variables.
-Relative values are resolved from the directory where the command is launched.
+The cSCC workflow uses prepared expression matrices, patch-index metadata, and
+frozen contextual and local CTransPath descriptors. Cohort data, pretrained
+weights, descriptor caches, and saved benchmark predictions are not included
+in this repository. The input formats are described in
+[morap/README.md](morap/README.md#input-data).
+
+Configure the directories before running the data-dependent workflows:
 
 ```bash
 export MORAP_DATA_ROOT="$PWD/data"
-export MORAP_CACHE_ROOT="$PWD/data/cache"
+export MORAP_CACHE_ROOT="$MORAP_DATA_ROOT/cache"
 export MORAP_RESULTS_ROOT="$PWD/outputs"
-export MORAP_ARCHIVE_ROOT="$PWD/artifacts"
-export MORAP_MODEL_ROOT="$PWD/models"
+export MORAP_ARCHIVE_ROOT="$MORAP_DATA_ROOT/archive"
+export MORAP_MODEL_ROOT="$MORAP_DATA_ROOT/models"
 ```
 
-| Variable | Purpose | Default when unset |
+| Variable | Contents | Default |
 |---|---|---|
-| `MORAP_DATA_ROOT` | Cohorts, labels, and derived inputs | `./data` at the repository root |
-| `MORAP_CACHE_ROOT` | Frozen descriptors and patch caches | `$MORAP_DATA_ROOT/cache` |
-| `MORAP_RESULTS_ROOT` | Checkpoints, predictions, tables, and figures | `./outputs` at the repository root |
-| `MORAP_ARCHIVE_ROOT` | Companion manuscript artifact bundle | `$MORAP_DATA_ROOT/archive` |
-| `MORAP_MODEL_ROOT` | Downloaded pretrained weights | `$MORAP_DATA_ROOT/models` |
+| `MORAP_DATA_ROOT` | Cohort data and expression matrices | `<repository>/data` |
+| `MORAP_CACHE_ROOT` | Descriptor and patch caches | `<data root>/cache` |
+| `MORAP_RESULTS_ROOT` | Checkpoints, predictions, metrics, and figures | `<repository>/outputs` |
+| `MORAP_ARCHIVE_ROOT` | Saved benchmark results and supporting analysis files | `<data root>/archive` |
+| `MORAP_MODEL_ROOT` | Pretrained model weights | `<data root>/models` |
 
-The values above are examples, not a required layout. A machine-readable
-example and the minimum expected cSCC tree are in
-[`configs/paths.example.yaml`](configs/paths.example.yaml). Large cohorts,
-weights, descriptor caches, predictions, and the companion artifact bundle are
-not committed to Git.
-
-Minimum cSCC inputs:
-
-```text
-$MORAP_DATA_ROOT/
-└── cscc/
-    └── labels/
-$MORAP_CACHE_ROOT/
-└── cscc/
-    ├── raw_patches/
-    ├── ctranspath_context/
-    └── ctranspath_local/
-```
-
-Raw cohort images and geometry are needed only when rebuilding the descriptor
-caches or rendering image-based figures.
+Relative paths are resolved from the working directory. The variables specify
+where prepared inputs are located; they do not download or generate those
+inputs. [configs/paths.example.yaml](configs/paths.example.yaml) provides a
+configuration example.
 
 ## Reference cSCC workflow
 
-Fit the four patient-held-out folds. The fixed split is stored in
-[`morap/configs/cscc_patient_cv4.json`](morap/configs/cscc_patient_cv4.json).
+The reference model uses 768-dimensional contextual CTransPath descriptors, a
+patient-balanced ridge readout, and one cross-section MNP step. The fixed
+configuration uses ridge regularisation $\lambda=10^6$, 64 neighbours per
+other section, and softmax inverse temperature 10. Each eligible section
+receives equal total aggregation weight.
+
+The [four patient folds](morap/configs/cscc_patient_cv4.json) cover 12 sections
+from four patients and a fixed ordered panel of 997 genes. Each fold specifies
+two training patients, one validation patient, and one test patient. The
+reference model uses fixed hyperparameters and fits only the two training
+patients; it does not use validation expression for fitting or selection.
+
+After preparing the inputs, train and evaluate all four folds:
 
 ```bash
 for fold in 0 1 2 3; do
@@ -144,86 +121,63 @@ done
 morap evaluate
 ```
 
-Use `--device cuda:0` to reproduce the GPU execution setting. Training writes
-pointwise and MoRAP predictions without opening the outer-test labels. The
-separate evaluation command verifies every fold artifact before loading those
-labels. Existing completed fold directories are never overwritten.
+Use `--device cuda:0` to run the ridge solve on a GPU. Training writes the
+checkpoint and outer-test predictions under
+`$MORAP_RESULTS_ROOT/cscc/folds/fold<FOLD_ID>/`. Evaluation checks file hashes,
+input manifests, and spot/gene alignment before scoring the predictions.
+The commands refuse to overwrite an existing fold directory or evaluation file.
 
-Label-free inference from a fitted checkpoint is:
+### Prediction on prepared sections
 
 ```bash
 morap infer \
-  --checkpoint outputs/cscc/folds/fold0/checkpoint.pt \
+  --checkpoint "$MORAP_RESULTS_ROOT/cscc/folds/fold0/checkpoint.pt" \
   --sections SECTION_1 SECTION_2 SECTION_3 \
-  --output outputs/inference/predictions.npz
+  --output "$MORAP_RESULTS_ROOT/inference/predictions.npz"
 ```
 
-Cross-section MoRAP requires at least two sections from one patient. For a
-single section, use the operators in
-[`morap/within_section.py`](morap/within_section.py).
+Replace the section identifiers with entries in the configured descriptor
+cache. This command uses the cross-section reference model: sections must
+belong to one patient, and at least two sections with at least 64 spots each
+are required. It reads the fitted checkpoint and image descriptors without
+opening expression labels for the requested sections. For single-section
+propagation, use [`morap.within_section.apply`](morap/within_section.py), as
+described in [the implementation guide](morap/README.md#within-section-propagation).
 
-## Reproducing manuscript tables and figures
+### Expression targets and evaluation
 
-Install the analysis and figure extras and configure the five roots above.
-Most table and figure workflows additionally require the companion bundle at
-`MORAP_ARCHIVE_ROOT`.
+The reference cSCC readout is fitted to `log1p(raw counts)`, standardised
+separately for each gene within each training section. Its predictions are
+in this standardised target space, rather than absolute counts.
 
-The main figure entry points are:
+The evaluator computes gene-wise Pearson correlation coefficients (PCC) within
+each section, averages over genes and sections within each test patient, and
+then averages equally over the four patients. For nonconstant genes, positive
+affine rescaling of the measured target within a section leaves PCC unchanged
+for fixed predictions. Mean squared error (MSE) is evaluated against
+section-standardised targets and depends on that scale. Target transformations
+and aggregation rules for other workflows are detailed in
+[REPRODUCTION.md](REPRODUCTION.md#expression-targets-and-scoring).
+
+## Repository organisation
+
+| Location | Contents |
+|---|---|
+| [`morap/`](morap/) | Reference model, propagation operators, evaluation utilities, and analyses |
+| [`experiments/`](experiments/) | Comparator benchmarks, component analyses, and propagation experiments |
+| [`plotting/`](plotting/) | Framework, attribution, benchmark-composite, and spatial-map builders |
+| [`comparators/`](comparators/) | Comparator adapters and third-party source snapshots |
+| [`examples/`](examples/) | Synthetic example |
+| [`tests/`](tests/) | Numerical, artifact-reading, and path checks |
+| [`REPRODUCTION.md`](REPRODUCTION.md) | Workflow commands, required inputs, and evaluation protocols |
+
+## Validation
 
 ```bash
-python plotting/manuscript/make_framework_figure.py
-python plotting/manuscript/make_attribution_figure.py
-python plotting/manuscript/make_benchmark_figure.py
-python plotting/spatial_maps/build_cscc_spatial_expression_overviews.py
-python plotting/spatial_maps/build_hest_stimage_spatial_expression_overviews.py
+python -m unittest discover -s tests -v
 ```
 
-Outputs are written under `$MORAP_RESULTS_ROOT/figures/` by default; every
-builder accepts `--output` for an explicit destination. The full
-manuscript-to-command map, table workflows, required inputs, and expected
-outputs are documented in [`REPRODUCTION.md`](REPRODUCTION.md).
-
-## Repository layout
-
-```text
-MoRAP/
-├── morap/                    # Installable reference package
-│   ├── model.py              # Ridge readout, MNP, and CLI
-│   ├── within_section.py     # Single-section propagation operators
-│   ├── paths.py              # Environment-controlled path policy
-│   ├── benchmark/            # Fold, target, and metric contracts
-│   └── analysis/             # Supplementary analyses
-├── experiments/              # Manuscript experiment entry points
-│   ├── benchmarks/           # cSCC, HEST, STImage, and HESpotEx
-│   ├── component_analysis/   # Encoder/downstream attribution
-│   ├── neighbor_controls/    # Neighbour controls
-│   └── transfer/             # Cross-benchmark MNP transfer
-├── plotting/                 # Main and spatial-map figure builders
-├── comparators/
-│   ├── adapters/             # Common-contract wrappers
-│   └── methods/              # Vendored upstream source snapshots
-├── examples/                 # Data-free minimal example
-├── configs/                  # Split and path examples
-├── tests/                    # Numerical and portability tests
-├── REPRODUCTION.md           # Detailed paper reproduction guide
-└── THIRD_PARTY.md            # Upstream provenance and licensing
-```
-
-The installable package does not expose a generic top-level `shared` module;
-benchmark utilities live under `morap.benchmark`. Vendored upstream code is
-marked as such for GitHub language statistics and remains governed by its
-original license.
-
-## Expression target and integrity notes
-
-The primary cSCC readout fits the ordered 997-gene `log1p(raw counts)` matrix
-after within-section, per-gene standardisation of each training section.
-Predictions remain in that standardised space. Gene-wise PCC computed within a
-section is unchanged by the corresponding positive affine target transform;
-MSE is reported in standardised space.
-
-Reference outputs record source, checkpoint, prediction, and array hashes.
-Loaders validate cache provenance, barcode order, gene order, shapes, and
-SHA-256 checksums. See
-[`REPRODUCTION.md`](REPRODUCTION.md#expression-targets-and-scoring) for the
-target used by each comparison.
+The tests cover patient weighting, the ridge solve, graph normalisation,
+propagation behaviour, and prediction-file validation. Reproducing biological
+results additionally requires the corresponding data, descriptors, predictions,
+and evaluation settings.

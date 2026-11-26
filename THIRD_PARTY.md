@@ -1,18 +1,10 @@
 # Third-party method code
 
-Trees under `comparators/methods/` are source-only snapshots required by the
-benchmark adapters. Weights and data are not included. Comments and terminal
-messages were translated or removed where necessary to keep the distribution
-English-only. Machine-specific data defaults were replaced with relative paths,
-environment prefixes were removed, and the HESpotEx environment export was
-reduced to runtime dependencies. Model equations and scientific
-hyperparameters were not changed. STAG is the exception: its benchmark adapter
-is self-contained and the directory only documents the external encoder
-checkpoint.
-
-The HESpotEx reproduction wrappers import the current `morap` package, and
-the STAG resource note uses the MoRAP project name. Their manifest hashes
-track these repository integration changes.
+The source snapshots under `comparators/methods/` support the benchmark
+adapters. Pretrained weights and datasets must be obtained separately.
+Repository integration includes relative data paths and imports of the MoRAP
+evaluation utilities. The STAG directory contains encoder checkpoint
+instructions; its benchmark implementation is provided in `experiments/`.
 
 Each snapshot remains subject to its upstream license; no additional rights
 are granted for files whose upstream source has no license. The manifest hashes

@@ -4,31 +4,35 @@ Run all commands from the repository root after installing the required profile
 and setting the path variables described in the main
 [`README.md`](README.md#data-and-path-configuration).
 
-## Reproducibility levels
+## Scope and required inputs
 
-The release separates three workflow classes:
+This guide documents the workflows implemented in this checkout. The
+synthetic example and numerical tests require only the core package. The
+cSCC training and evaluation commands require prepared data and descriptor
+caches. Benchmark analyses and figure builders additionally use saved
+predictions, summary tables, or supporting scripts under `MORAP_ARCHIVE_ROOT`.
 
-1. **Reference method.** `morap train` creates cSCC outer-test predictions
-   from frozen descriptor caches, and `morap evaluate` verifies and scores
-   the four folds.
-2. **Published comparators.** Scripts in `comparators/adapters/` place a
-   published architecture on a declared fold, spot, gene, and target contract.
-   Each run records source hashes, the seed, selected checkpoint, and output
-   hashes.
-3. **Manuscript aggregation.** Scripts in `experiments/` and `plotting/`
-   consume sealed predictions and the companion artifact bundle. They do not
-   redefine MoRAP.
+| Workflow | Required inputs beyond the installed package |
+|---|---|
+| Synthetic example and unit tests | None |
+| cSCC reference training and evaluation | Label matrices, patch index, contextual and local CTransPath caches, and their manifests |
+| Comparator training | Cohort data, split and gene-panel definitions, method-specific dependencies, and pretrained weights |
+| Propagation analyses | Saved base predictions, matching descriptors, and the corresponding scoring targets |
+| Figure generation | The source data, tables, images, or pre-rendered panels required by the selected builder |
 
-Large source cohorts, pretrained weights, descriptor matrices, prediction
-artifacts, and the companion manuscript bundle are not stored in Git. Workflows
-fail early when a required file or provenance field is absent and refuse to
-overwrite completed outputs.
+The repository does not include the large data files or the analysis archive,
+and it does not currently specify a download location for that archive.
+The commands below assume those inputs have been prepared in the indicated
+locations. The NCCHE and DeepSpot experiments described in the manuscript do
+not have dedicated execution scripts in this checkout; the listed commands
+should not be interpreted as complete coverage of those experiments.
 
 ## 1. Reference cSCC result
 
-Required inputs are the cSCC label shards and the raw-patch, contextual
-CTransPath, and local CTransPath caches documented in
-`configs/paths.example.yaml`.
+Required inputs are the cSCC expression matrices, raw-patch index, and
+contextual and local CTransPath descriptor caches. Their formats are described
+in [morap/README.md](morap/README.md#input-data), and the directory configuration
+is illustrated in [configs/paths.example.yaml](configs/paths.example.yaml).
 
 ```bash
 for fold in 0 1 2 3; do
@@ -42,22 +46,22 @@ two training patients. It does not open validation or outer-test expression.
 The evaluation phase verifies all four prediction artifacts before opening the
 test targets and applies equal patient weighting.
 
-Default outputs:
+Each `fold<FOLD_ID>/` directory under `$MORAP_RESULTS_ROOT/cscc/folds/`
+contains `checkpoint.pt`, `outer_test_predictions.npz`, `run_metadata.json`,
+and `complete.json`. Evaluation writes `evaluation.json` in the parent
+directory. Predictions remain in the section-standardised target space.
+Training refuses to overwrite an existing fold directory, and evaluation
+refuses to overwrite an existing `evaluation.json`.
 
-```text
-$MORAP_RESULTS_ROOT/cscc/folds/
-├── fold0/
-├── fold1/
-├── fold2/
-├── fold3/
-└── evaluation.json
-```
+## 2. Benchmark and propagation workflows
 
-## 2. Table workflows
+### HEST and STImage comparator benchmarks
 
-### HEST and STImage benchmark table
-
-First create target-blind patch caches and fold contracts:
+Prepare the HEST data under `$MORAP_DATA_ROOT/hest` and STImage data under
+`$MORAP_DATA_ROOT/stimage`. The STImage workflow also reads protocol files
+from `$MORAP_ARCHIVE_ROOT/stimage/protocol` and targets from
+`$MORAP_DATA_ROOT/stimage/targets`. Generate image patch caches and dataset
+configurations, including split and gene-panel definitions:
 
 ```bash
 python experiments/benchmarks/prepare_hest_stimage_comparator_contracts.py \
@@ -86,9 +90,13 @@ environments and weights are method-specific; see
 [`comparators/README.md`](comparators/README.md) and
 [`THIRD_PARTY.md`](THIRD_PARTY.md).
 
-### MNP transfer table
+### Within-section MNP on saved predictions
 
-HEST and STImage use both CTransPath and UNI-v1 representations:
+The HEST and STImage scripts apply within-section MNP to saved readout
+predictions for CTransPath and UNI-v1. They read base predictions from
+`$MORAP_ARCHIVE_ROOT/legacy/development/transfer/{hest,stimage}/` and matching
+descriptors from `$MORAP_CACHE_ROOT/{hest,stimage}/`. These scripts evaluate
+propagation on those files; they do not train the base readouts.
 
 ```bash
 for encoder in ctranspath uni_v1; do
@@ -97,7 +105,11 @@ for encoder in ctranspath uni_v1; do
 done
 ```
 
-HESpotEx cSCC and HER2+ use sealed base predictions:
+The HESpotEx-aligned cSCC and HER2+ workflow reads base readout predictions
+under `$MORAP_ARCHIVE_ROOT/hespotex/morap`, dataset configurations under
+`$MORAP_ARCHIVE_ROOT/hespotex/contracts`, and expression/descriptor files
+under `$MORAP_DATA_ROOT/{cscc,her2}/derived`. These section-level experiments
+use different gene panels and splits from the 997-gene cSCC reference:
 
 ```bash
 for cohort in cscc her2; do
@@ -107,19 +119,32 @@ for cohort in cscc her2; do
 done
 ```
 
-Comparator-transfer results are generated with:
+### Cross-section MNP on cSCC comparator predictions
+
+The comparator analysis uses the reference cSCC checkpoints and predictions,
+the index at
+`$MORAP_ARCHIVE_ROOT/detail/01_benchmark/comparators_historical/benchmark_prediction_artifact_index.csv`,
+and the baseline metric table at
+`$MORAP_ARCHIVE_ROOT/benchmark_strict/per_patient_gene_metrics.csv.gz`:
 
 ```bash
 python -m morap.analysis.evaluate_comparator_transfer
 ```
 
-All transfer analyses retain the base predictor and scoring target unchanged
-before and after MNP.
+The analysis builds one descriptor graph per held-out patient and applies
+it to the readout and available comparator predictions. Each paired comparison
+keeps the fitted predictor and scoring target fixed. Comparator predictions
+are standardised within section and gene before propagation; an additional
+unstandardised propagation result is reported. The evaluated method set is
+determined by the prediction index and coverage across all four folds.
+`summary.json` records methods without full section coverage, and
+`summary.csv` reports the included methods and their paired PCC changes.
 
 ### cSCC comparator metrics
 
-After the additional comparator runs and HESpotEx/STFlow artifacts are
-available:
+This evaluator reads comparator predictions under
+`$MORAP_ARCHIVE_ROOT/benchmark/`, cSCC labels, saved STFlow results, and the
+metric helper `$MORAP_ARCHIVE_ROOT/tools/compute_unified_protocol_metrics.py`:
 
 ```bash
 python experiments/benchmarks/evaluate_cscc_added_benchmark_metrics.py
@@ -137,7 +162,7 @@ Install the figure extras first:
 python -m pip install -e ".[analysis,figures]"
 ```
 
-### Figure 1: framework
+### Framework overview
 
 Requires cSCC H&E images, geometry, labels, and both CTransPath descriptor
 views:
@@ -147,7 +172,7 @@ python plotting/manuscript/make_framework_figure.py \
   --output "$MORAP_RESULTS_ROOT/figures/figure1.png"
 ```
 
-### Figure 2: matched-descriptor attribution
+### Matched-descriptor attribution
 
 Requires
 `$MORAP_ARCHIVE_ROOT/reports/comparator_results/benchmark_common_contract_attribution.csv`:
@@ -157,8 +182,10 @@ python plotting/manuscript/make_attribution_figure.py \
   --output "$MORAP_RESULTS_ROOT/figures/figure2.png"
 ```
 
-The upstream attribution runs are in `experiments/component_analysis/`. The
-portable entry points retained in this release are:
+Component-analysis workflows are in `experiments/component_analysis/`.
+The following entry points prepare image caches, fit matched readouts, and
+run downstream modules; they require the corresponding cohort data and
+encoder descriptors:
 
 ```bash
 python experiments/component_analysis/prepare_benchmark_384_patch_cache.py
@@ -168,14 +195,17 @@ python experiments/component_analysis/run_benchmark_common_original_downstream.p
   --method METHOD_ID --fold FOLD_ID --device cuda:0
 ```
 
-Some encoder-specific attribution runners call preserved helpers in the
-companion artifact bundle; this dependency is explicit through
-`MORAP_ARCHIVE_ROOT`.
+Some encoder-specific attribution scripts also load helpers from
+`MORAP_ARCHIVE_ROOT`. The plotting command above reads an existing CSV;
+it does not execute these training workflows.
 
 ### Benchmark end-point composite
 
-Requires the three sealed source panels under
+Requires three pre-rendered source panels under
 `$MORAP_ARCHIVE_ROOT/figures/benchmark/panels/`:
+`benchmark_fig2d_cscc_strict.png`, `benchmark_fig3a_cscc_strict.png`, and
+`benchmark_fig3d_cscc_strict.png`. This script assembles those images into a
+composite; it does not recompute the benchmark statistics.
 
 ```bash
 python plotting/manuscript/make_benchmark_figure.py \
@@ -183,6 +213,12 @@ python plotting/manuscript/make_benchmark_figure.py \
 ```
 
 ### Spatial-expression maps
+
+The cSCC/HER2+ builder requires saved predictions, metric tables, tissue
+images, and plotting helpers under `$MORAP_ARCHIVE_ROOT/spatial_maps/legacy`.
+The HEST/STImage builder requires cohort images and geometry, comparator
+predictions under `$MORAP_ARCHIVE_ROOT/benchmarks/hest_stimage`, and readout
+predictions under `$MORAP_ARCHIVE_ROOT/transfer/{hest,stimage}/uni_v1`.
 
 ```bash
 python plotting/spatial_maps/build_cscc_spatial_expression_overviews.py \
@@ -194,8 +230,10 @@ python plotting/spatial_maps/build_hest_stimage_spatial_expression_overviews.py 
   --dpi 220
 ```
 
-Both builders validate prediction identities and metric provenance before
-rendering.
+Both builders check prediction alignment and stored metric values. Gene
+selection uses observed prediction performance, so the maps are descriptive
+examples rather than estimates of aggregate model accuracy. See
+[plotting/spatial_maps/README.md](plotting/spatial_maps/README.md).
 
 ## 4. Supplementary analyses
 
@@ -209,9 +247,9 @@ rendering.
 | Control aggregation | `python experiments/neighbor_controls/run_within_section_control.py evaluate` |
 | Single-fold efficiency | `python experiments/benchmarks/run_cscc_single_fold_efficiency.py --help` |
 
-## Manuscript-to-code map
+## Workflow index
 
-| Manuscript item | Primary entry point |
+| Workflow | Primary entry point |
 |---|---|
 | cSCC linear readout and MoRAP | `morap train`, then `morap evaluate` |
 | HEST and STImage benchmark table | `experiments/benchmarks/run_hest_stimage_benchmarks.py` |
@@ -235,31 +273,31 @@ Training targets and scoring references serve different roles:
 | Readouts paired with method-specific representations | Same unstandardised `log1p(raw counts)` | Same common expression reference |
 | Primary CTransPath-384 readout | `log1p(raw counts)` standardised within each training section and gene | Same common expression reference; section-standardised labels give identical PCC |
 | Complete cSCC pipelines | Method-specific target transformations | Each method's own target space |
-| Complete HEST and STImage pipelines | Deposited 50-gene targets supplied by the external contract | Deposited `log1p(raw counts)`; the archived PACE-ST branch also standardises targets and predictions within section |
-| MNP on 18 cSCC predictors | Base predictors are not refitted | Each predictor's own target, unchanged before and after MNP |
+| HEST and STImage comparator workflows | Method-specific transforms of the deposited 50-gene targets, recorded in run metadata | Common deposited `log1p(raw counts)` for the main comparisons; inspect the recorded target space for separately standardised runs |
+| Cross-section MNP on cSCC comparator predictions | Base predictors are not refitted | Each predictor's target transformation from run metadata, fixed before and after MNP |
 
-For each comparator MNP pair, predictions are standardised within section and
+For each cSCC comparator MNP pair, predictions are standardised within section and
 gene before propagation, the same measured-expression target is retained for
 both scores, and the base predictor is unchanged. Linear-readout transfer
 analyses likewise retain each benchmark's target before and after MNP.
 
-A positive affine transformation of the scoring target leaves PCC unchanged
-for fixed predictions within a section. Applying section-specific transforms
-before fitting can change the fitted predictor, and applying them before
+For nonconstant genes, a positive affine transformation of the scoring target
+leaves PCC unchanged for fixed predictions within a section. Applying
+section-specific transforms before fitting can change the fitted predictor, and applying them before
 pooling sections can change pooled PCC. Per-spot library-size normalisation
 (CP10K or CPM) changes the scoring reference rather than merely changing its
 units.
 
-## Verification checklist
+## Validation and reporting
 
-Before reporting reproduced values:
+Run `python -m unittest discover -s tests -v` to check the numerical core
+and artifact readers. For cSCC reference results, `morap evaluate` verifies
+completion records, file hashes, input manifests, and prediction alignment.
+Third-party source checksums can be checked from the repository root with
+`(cd comparators/methods && shasum -a 256 -c MANIFEST.sha256)`.
 
-1. Run `python -m unittest discover -s tests -v`.
-2. Confirm every expected fold has `complete.json` and
-   `run_metadata.json`.
-3. Let the evaluation entry point verify hashes; do not score unsealed
-   prediction files directly.
-4. Record the five configured roots, Python environment, GPU model, and command
-   line.
-5. Verify vendored-source integrity with
-   `(cd comparators/methods && sha256sum -c MANIFEST.sha256)`.
+When reporting benchmark results, record the code revision, data and gene
+panel, split identifiers, encoder and preprocessing, target transformation,
+checkpoint selection rule, and metric aggregation. Record the software
+versions, hardware, and command line for computational reproducibility.
+The available tests do not replace a rerun of the data-dependent experiments.
