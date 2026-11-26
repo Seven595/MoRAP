@@ -14,11 +14,6 @@ expression from histology images in two stages:
 
 ![MoRAP overview: frozen pathology descriptors feed a balanced linear readout and a dual-view rank-fusion graph, followed by morphological neighbour propagation.](docs/assets/morap-overview.png)
 
-**Overview of MoRAP.** The linear readout predicts spot-level expression from
-frozen contextual descriptors. MNP aggregates these predictions using a graph
-constructed from contextual and local similarity rankings. The schematic
-shows cross-section MNP; within-section MNP uses neighbours from the same section.
-
 For the matrix of spot-level expression predictions, propagation is:
 
 ```math
