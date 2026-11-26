@@ -6,12 +6,18 @@ command-line interface.
 
 ## Linear readout
 
-For $N$ training spots from a set of patients $U$, spot $i$ receives weight
-$w_i=N/(|U|n_{u(i)})$, where $n_{u(i)}$ is the number of training spots from its
-patient. Each patient therefore contributes equal total weight to the fit.
-Feature means and variances and the target mean are computed with these
-weights. The readout solves multi-output ridge regression with regularisation
-$\lambda=10^6$ on the centred, standardised features and centred targets.
+For *N* training spots from a set of patients *U*, each spot receives weight:
+
+```math
+w_i = \frac{N}{|U|\,n_{u(i)}}
+```
+
+The denominator combines the number of training patients with the number of
+spots from the patient containing spot *i*. Each patient therefore contributes
+equal total weight to the fit. Feature means and variances and the target mean
+are computed with these weights. The readout solves multi-output ridge
+regression with regularisation `1e6` on the centred, standardised features and
+centred targets.
 
 The cSCC model uses 768-dimensional contextual CTransPath descriptors.
 Training targets are `log1p(raw counts)`, standardised within each section

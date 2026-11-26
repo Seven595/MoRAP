@@ -12,10 +12,22 @@ expression from histology images in two stages:
    without refitting the readout. Neighbours are selected by normalised Borda
    rank fusion, and their predictions are combined using softmax weights.
 
-For a matrix of spot-level predictions $\hat{Y}_{\mathrm{point}}$, propagation
-is $\hat{Y}_{\mathrm{MNP}} = A\hat{Y}_{\mathrm{point}}$, where $A$ is a
-row-stochastic matrix computed from image descriptors. Graph construction and
-propagation do not require expression measurements from the predicted sections.
+![MoRAP overview: frozen pathology descriptors feed a balanced linear readout and a dual-view rank-fusion graph, followed by morphological neighbour propagation.](docs/assets/morap-overview.png)
+
+**Overview of MoRAP.** The linear readout predicts spot-level expression from
+frozen contextual descriptors. MNP aggregates these predictions using a graph
+constructed from contextual and local similarity rankings. The schematic
+shows cross-section MNP; within-section MNP uses neighbours from the same section.
+
+For the matrix of spot-level expression predictions, propagation is:
+
+```math
+\hat{Y}_{\mathrm{MNP}} = A\hat{Y}_{\mathrm{point}}
+```
+
+Here, *A* is a row-stochastic matrix computed from image descriptors. Graph
+construction and propagation do not require expression measurements from the
+predicted sections.
 
 This repository provides the reference cSCC implementation, within-section
 propagation operators, and scripts for benchmark evaluation and figure
@@ -102,7 +114,7 @@ configuration example.
 
 The reference model uses 768-dimensional contextual CTransPath descriptors, a
 patient-balanced ridge readout, and one cross-section MNP step. The fixed
-configuration uses ridge regularisation $\lambda=10^6$, 64 neighbours per
+configuration uses ridge regularisation `1e6`, 64 neighbours per
 other section, and softmax inverse temperature 10. Each eligible section
 receives equal total aggregation weight.
 
